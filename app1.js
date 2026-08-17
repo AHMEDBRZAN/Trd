@@ -8,6 +8,7 @@ var SIM=[];
 var MSTACK=[];
 var CURRENT_REOPEN=null;
 var CUR_SCREEN=null;
+var NO_PUSH=false;
 var ALIASES=load('aliasMap',{});
 var IMGS=load('imgMap',{});
 var scanner=null;
@@ -105,17 +106,37 @@ function ensureLib(name,urls){
  });
  return p;
 }
+/* عرض متدرج سريع: 50 عنصرًا ثم زر المزيد */
+function renderChunked(container,arr,mapFn){
+ container.innerHTML='';
+ var n=0;
+ var STEP=50;
+ var btn=document.createElement('button');
+ btn.className='btn ghost';
+ btn.style.marginTop='8px';
+ container.appendChild(btn);
+ function addMore(){
+  var slice=arr.slice(n,n+STEP);
+  n=n+slice.length;
+  var html=slice.map(mapFn).join('');
+  btn.insertAdjacentHTML('beforebegin',html);
+  bindItems(container);
+  if(n<arr.length){
+   btn.textContent='⬇ عرض المزيد ('+(arr.length-n)+' متبقي)';
+  }else if(btn.parentNode){
+   btn.parentNode.removeChild(btn);
+  }
+ }
+ addMore();
+}
 function bindUpload(){
- var pairs=[['fileInput2','lblOpen2']];
- pairs.forEach(function(pair){
-  var inp=$(pair[0]);
-  var lbl=$(pair[1]);
-  if(!inp||!lbl){return}
-  lbl.addEventListener('click',function(){
-   log('ضغطة زر اختيار الملف سُجّلت — يُفتح المنتقي…');
-  });
-  inp.addEventListener('change',onFile);
+ var inp=$('fileInput2');
+ var lbl=$('lblOpen2');
+ if(!inp||!lbl){return}
+ lbl.addEventListener('click',function(){
+  log('ضغطة زر اختيار الملف سُجّلت — يُفتح المنتقي…');
  });
+ inp.addEventListener('change',onFile);
 }
 function onFile(e){
  var f=e.target.files&&e.target.files[0];
@@ -194,9 +215,8 @@ function showFileStat(f){
  var bm=$('btnMap');
  if(bm){bm.onclick=showMapModal}
 }
-/* ====== الفهم الآلي داخل نافذة ====== */
 function showMapModal(){
- if(CUR_SCREEN!=='map'){MSTACK.push(CURRENT_REOPEN)}
+ if(!NO_PUSH&&CUR_SCREEN!=='map'){MSTACK.push(CURRENT_REOPEN)}
  CURRENT_REOPEN=function(){showMapModal()};
  CUR_SCREEN='map';
  lockScroll(true);
@@ -232,11 +252,7 @@ function showMapModal(){
   });
   buildItems();
   renderAll();
-  MSTACK.pop();
-  CURRENT_REOPEN=null;
-  CUR_SCREEN=null;
-  $('modal').hidden=true;
-  lockScroll(false);
+  closeModalOne();
   toast('✔ طُبّق الفهم الآلي');
  };
 }
@@ -319,7 +335,6 @@ function showWork(){
  var ids=['dash','tools','btnSaveSession'];
  ids.forEach(function(i){$(i).hidden=false});
 }
-/* ====== التشابه مع فهم المقاسات ====== */
 var UNIT_WORDS={'انج':1,'انش':1,'بوصه':1,'بوصة':1,'لتر':1,'ل':1,'مل':1,'كيلو':1,'كغم':1,'غم':1,'سم':1,'مم':1,'متر':1,'l':1,'kg':1,'g':1,'ltr':1};
 function sizeSig(s){
  var toks=s.split(' ');
@@ -381,8 +396,20 @@ function computeSimOn(arr){
  return pairs;
 }
 function computeSim(){SIM=computeSimOn(ITEMS)}
+function pairCardFactory(arr){
+ return function(p){
+  var a=arr[p.a];
+  var b=arr[p.b];
+  var h='<div class="item" style="flex-direction:column;align-items:stretch;gap:8px">';
+  h=h+'<span class="sim small">👥 نسبة التشابه: '+Math.round(p.s*100)+'%</span>';
+  h=h+'<div class="row" style="justify-content:space-between"><div><b>'+a.name+'</b><div class="mut small">السعر: '+fmt(a.price)+' • الكمية: '+a.qty+' • رمز: '+a.code+'</div></div><button class="btn ghost" data-open="'+a.code+'">عرض</button></div>';
+  h=h+'<div class="row" style="justify-content:space-between"><div><b>'+b.name+'</b><div class="mut small">السعر: '+fmt(b.price)+' • الكمية: '+b.qty+' • رمز: '+b.code+'</div></div><button class="btn ghost" data-open="'+b.code+'">عرض</button></div>';
+  h=h+'</div>';
+  return h;
+ };
+}
 function openSimList(arr,pairs,title){
- if(CUR_SCREEN!=='sim'){MSTACK.push(CURRENT_REOPEN)}
+ if(!NO_PUSH&&CUR_SCREEN!=='sim'){MSTACK.push(CURRENT_REOPEN)}
  CURRENT_REOPEN=function(){openSimList(arr,pairs,title)};
  CUR_SCREEN='sim';
  lockScroll(true);
@@ -398,31 +425,18 @@ function openSimList(arr,pairs,title){
  });
  window.CURLIST={title:title,rows:rows};
  var h='<div class="row" style="margin-bottom:8px"><button class="btn ghost" id="btnExpList">⬇️ تصدير Excel</button></div>';
- h=h+'<div class="list">';
- if(!pairs.length){
-  h=h+'<p class="mut">لا توجد أصناف متشابهة ✔</p>';
- }
- pairs.forEach(function(p){
-  var a=arr[p.a];
-  var b=arr[p.b];
-  h=h+'<div class="item" style="flex-direction:column;align-items:stretch;gap:8px">';
-  h=h+'<span class="sim small">👥 نسبة التشابه: '+Math.round(p.s*100)+'%</span>';
-  h=h+'<div class="row" style="justify-content:space-between"><div><b>'+a.name+'</b><div class="mut small">السعر: '+fmt(a.price)+' • الكمية: '+a.qty+' • رمز: '+a.code+'</div></div><button class="btn ghost" data-open="'+a.code+'">عرض</button></div>';
-  h=h+'<div class="row" style="justify-content:space-between"><div><b>'+b.name+'</b><div class="mut small">السعر: '+fmt(b.price)+' • الكمية: '+b.qty+' • رمز: '+b.code+'</div></div><button class="btn ghost" data-open="'+b.code+'">عرض</button></div>';
-  h=h+'</div>';
- });
- h=h+'</div>';
+ h=h+'<div class="list" id="simList"></div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
+ renderChunked($('simList'),pairs,pairCardFactory(arr));
  $('mBody').querySelectorAll('[data-open]').forEach(function(btn){
   btn.onclick=function(){openModal(btn.getAttribute('data-open'))};
  });
  var be=$('btnExpList');
  if(be){be.onclick=function(){if(window.exportItemsList){window.exportItemsList()}};}
 }
-/* ====== نافذة البطاقة (المجموعة) ====== */
 function showGroupModal(g){
- if(CUR_SCREEN!=='group'){MSTACK.push(CURRENT_REOPEN)}
+ if(!NO_PUSH&&CUR_SCREEN!=='group'){MSTACK.push(CURRENT_REOPEN)}
  CURRENT_REOPEN=function(){showGroupModal(g)};
  CUR_SCREEN='group';
  lockScroll(true);
@@ -440,10 +454,10 @@ function showGroupModal(g){
  h=h+'<span class="chip warn" data-g="nobar">بدون باركود: '+noBar.length+'</span>';
  h=h+'<span class="chip warn" data-g="noprice">بدون سعر: '+noPrice.length+'</span>';
  h=h+'<span class="chip warn" data-g="sim">متشابهة: '+pairs.length+'</span>';
- h=h+'</div><div class="list">'+sub.map(itemCard).join('')+'</div>';
+ h=h+'</div><div class="list" id="gList"></div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
- bindItems($('mBody'));
+ renderChunked($('gList'),sub,itemCard);
  $('mBody').querySelectorAll('[data-g]').forEach(function(c){
   c.onclick=function(){
    var key=c.getAttribute('data-g');

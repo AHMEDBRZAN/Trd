@@ -66,12 +66,13 @@ th{background:var(--card2)}
 #log ul{margin:8px 0 0;padding:0 18px 0 0;font-size:13px;color:var(--mut)}
 #log li{margin:4px 0}
 #log li.ok{color:var(--ac2)} #log li.er{color:var(--bad)}
+#dbg{background:#000;color:#7CFC00;border:1px solid var(--ac2);border-radius:10px;padding:10px;font-size:11px;max-height:220px;overflow:auto;white-space:pre-wrap;font-family:monospace}
 </style>
 </head>
 <body>
 <header>
  <div class="row"><span style="font-size:26px">📦</span>
-  <div><b>دليل الأصناف الذكي</b> <span class="badge">الإصدار 6.0</span>
+  <div><b>دليل الأصناف الذكي</b> <span class="badge">الإصدار 6.1</span>
   <div class="mut small">قراءة Excel • تحليل عميق • بحث • باركود • تعرف بالصورة • أسماء بديلة</div></div>
  </div>
  <div class="row">
@@ -81,6 +82,7 @@ th{background:var(--card2)}
   <label class="btn" id="lblOpen">📂 فتح ملف Excel<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hid"></label>
  </div>
 </header>
+<pre id="dbg">🖥 لوحة التشخيص:\n</pre>
 <main>
  <section id="fileStat" class="filestat" hidden></section>
  <section id="dropZone" class="drop">
@@ -150,19 +152,22 @@ th{background:var(--card2)}
 <canvas id="vCanvas" hidden></canvas>
 <script>
 (function(){
- var cap=false;
+ function D(m){var p=document.getElementById('dbg');if(p)p.textContent+=m+'\n';}
+ window.D=D;
  window.addEventListener('error',function(e){
-  cap=true;
-  var b=document.getElementById('sysState');
-  var f=e.filename?e.filename.split('/').pop():'الصفحة';
-  if(b){b.textContent='⚠ خطأ في '+f+' سطر '+(e.lineno||'؟');b.style.color='var(--bad)';b.style.borderColor='var(--bad)';}
+  var t=e.target;
+  if(t&&t.tagName==='SCRIPT'){D('⛔ فشل تحميل سكربت خارجي: '+(t.src||'؟'));return}
+  D('⛔ خطأ: '+(e.message||'؟')+' | ملف: '+(e.filename?e.filename.split('/').pop():'الصفحة')+' | سطر: '+(e.lineno||'؟'));
  },true);
+ window.addEventListener('unhandledrejection',function(e){D('⛔ رفض وعد: '+(e.reason&&e.reason.message?e.reason.message:e.reason))});
  setTimeout(function(){
-  if(!window.APP_READY&&!cap){
-   var b=document.getElementById('sysState');
-   if(b)b.textContent='⚠ لم يكتمل التشغيل — تحقق من ملفات app1 / app2 / app3';
-  }
- },4500);
+  D('—— تقرير الجاهزية ——');
+  D('مكتبة XLSX: '+(typeof window.XLSX));
+  D('مكتبة Html5Qrcode: '+(typeof window.Html5Qrcode));
+  D('app1 → handleFile: '+(typeof window.handleFile));
+  D('app2 → openModal: '+(typeof window.openModal));
+  D('app3 → التشغيل: '+(window.APP_READY?'مكتمل ✔':'لم يكتمل ✖'));
+ },5000);
 })();
 </script>
 <script src="app1.js"></script>

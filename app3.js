@@ -1,8 +1,34 @@
 (function(){
  var st=document.createElement('style');
  st.textContent='table{background:#fff;color:#000}th,td{border:1px solid #999;color:#000}th{background:#e8e8e8;color:#000}'
- +'.item{flex-wrap:wrap}.item b{font-size:13px}.item small{font-size:11px}.item .ph{font-size:26px}';
+ +'.item{flex-wrap:wrap}.item b{font-size:13px}.item small{font-size:11px}';
  document.head.appendChild(st);
+})();
+/* إخفاء ما لا داعي له من الواجهة الثابتة */
+(function(){
+ var lo=$('lblOpen');
+ if(lo){lo.style.display='none'}
+ ['tTable','tVision'].forEach(function(t){
+  var b=document.querySelector('.tab[data-t="'+t+'"]');
+  if(b&&b.parentNode){b.parentNode.removeChild(b)}
+  var p=$(t);
+  if(p&&p.parentNode){p.parentNode.removeChild(p)}
+ });
+ var badges=document.querySelectorAll('header .badge');
+ if(badges.length){badges[0].textContent='الإصدار 7.1'}
+})();
+/* كيبورد أسهل */
+(function(){
+ var mb=$('manualBar');
+ if(mb){mb.setAttribute('inputmode','numeric')}
+ document.addEventListener('click',function(e){
+  var t=e.target;
+  var tag=t.tagName;
+  if(tag!=='INPUT'&&tag!=='TEXTAREA'&&tag!=='SELECT'){
+   var a=document.activeElement;
+   if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')){a.blur()}
+  }
+ },true);
 })();
 function exportRowsFile(title,rows){
  var ws=XLSX.utils.json_to_sheet(rows);
@@ -19,7 +45,7 @@ window.exportItemsList=function(){
   toast('لا توجد بيانات للتصدير',1);
  }
 };
-/* ====== محرر أعمدة التصدير ====== */
+/* ====== أعمدة التصدير ====== */
 var COLT={seq:'تسلسل',code:'الرمز',name:'اسم المادة',unit:'الوحدة',price:'سعر المبيع',group:'المجموعة',qty:'الكمية',barcode:'الباركود',aliases:'أسماء بديلة'};
 var EXPC=load('expConf',null);
 if(!EXPC){
@@ -42,15 +68,20 @@ function itemRowByOrder(it,idx){
  return o;
 }
 function doExport(){
+ if(!ITEMS.length){
+  toast('لا توجد بيانات — ارفع ملفًا أولًا',1);
+  return;
+ }
  var rows=ITEMS.map(function(it,idx){return itemRowByOrder(it,idx)});
  exportRowsFile('الأصناف',rows);
 }
 function showExportModal(){
- window.CURRENT_REOPEN=function(){showExportModal()};
+ if(CUR_SCREEN!=='exp'){MSTACK.push(CURRENT_REOPEN)}
+ CURRENT_REOPEN=function(){showExportModal()};
+ CUR_SCREEN='exp';
  lockScroll(true);
- $('mTitle').textContent='تصدير Excel — ترتيب الأعمدة (يمين→يسار)';
- var h='<div class="row" style="margin-bottom:8px"><button class="btn" id="expNow">⬇️ تصدير مباشر</button></div>';
- h=h+'<div class="list">';
+ $('mTitle').textContent='⚙ ترتيب أعمدة التصدير (يمين→يسار)';
+ var h='<div class="list">';
  EXPC.forEach(function(c,i){
   h=h+'<div class="item"><div style="flex:1"><b>'+COLT[c.k]+'</b></div>';
   h=h+'<button class="btn ghost" data-up="'+i+'">⬆</button>';
@@ -58,13 +89,12 @@ function showExportModal(){
   h=h+'<button class="btn ghost" data-tg="'+i+'">'+(c.on?'ظاهر ✔':'مخفي ✖')+'</button>';
   h=h+'</div>';
  });
- h=h+'</div><div class="row" style="margin-top:8px"><button class="btn" id="expEdit">⬇️ تصدير بالترتيب أعلاه</button></div>';
+ h=h+'</div><div class="row" style="margin-top:8px"><button class="btn" id="expSave">💾 حفظ الترتيب</button></div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
- $('expNow').onclick=doExport;
- $('expEdit').onclick=function(){
+ $('expSave').onclick=function(){
   saveLS('expConf',EXPC);
-  doExport();
+  toast('حُفظ ترتيب الأعمدة ✔');
  };
  $('mBody').querySelectorAll('[data-up]').forEach(function(b){
   b.onclick=function(){
@@ -86,7 +116,19 @@ function showExportModal(){
   };
  });
 }
-$('btnExport').onclick=showExportModal;
+/* زرّا التصدير داخل بطاقة التحليل */
+(function(){
+ var dash=$('dash');
+ if(!dash){return}
+ var row=document.createElement('div');
+ row.className='row';
+ row.style.marginBottom='8px';
+ row.innerHTML='<button class="btn" id="btnExpDirect">⬇️ تصدير Excel</button><button class="btn ghost" id="btnExpConf">⚙ ترتيب الأعمدة</button>';
+ var stats=dash.querySelector('.stats');
+ dash.insertBefore(row,stats);
+ row.querySelector('#btnExpDirect').onclick=doExport;
+ row.querySelector('#btnExpConf').onclick=showExportModal;
+})();
 /* ====== مدير الجلسات ====== */
 var SESSIONS=load('sessions',{});
 var CURSID=null;
@@ -141,18 +183,22 @@ function restoreSession(id){
  showWork();
  renderAll();
  $('modal').hidden=true;
+ MSTACK=[];
+ CURRENT_REOPEN=null;
+ CUR_SCREEN=null;
  lockScroll(false);
  toast('✔ فُتحت الجلسة: '+s.name);
 }
 function showSessionsModal(){
- window.CURRENT_REOPEN=function(){showSessionsModal()};
+ if(CUR_SCREEN!=='sess'){MSTACK.push(CURRENT_REOPEN)}
+ CURRENT_REOPEN=function(){showSessionsModal()};
+ CUR_SCREEN='sess';
  lockScroll(true);
  var ids=Object.keys(SESSIONS).sort(function(a,b){
   return (SESSIONS[b].t||0)-(SESSIONS[a].t||0);
  });
  $('mTitle').textContent='الجلسات المحفوظة ('+ids.length+')';
- var h='<div class="row" style="margin-bottom:8px"><button class="btn" id="btnSaveNow">💾 حفظ الجلسة الحالية</button></div>';
- h=h+'<div class="list">';
+ var h='<div class="list">';
  if(!ids.length){
   h=h+'<p class="mut">لا جلسات محفوظة بعد — ارفع ملفًا ثم اضغط "حفظ الجلسة".</p>';
  }
@@ -172,10 +218,6 @@ function showSessionsModal(){
  h=h+'</div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
- $('btnSaveNow').onclick=function(){
-  saveCurrentSession();
-  showSessionsModal();
- };
  $('mBody').querySelectorAll('[data-sopen]').forEach(function(b){
   b.onclick=function(){restoreSession(b.getAttribute('data-sopen'))};
  });
@@ -218,7 +260,9 @@ $('btnDemo').onclick=function(){
  [12,187012,'اجرة ستوتة','قطعة',10000,'خدمات',-7,';87198621;'],
  [20,187014,'اس بي ار 5 لتر','قطعة',20000,'فلوري',21,';81757;'],
  [27,1868,'اساس حديد رصاصي 0.75 L','قطعة',8000,'فلوري',47,';88065;'],
- [33,1756,'اسمير لون سيدار','قطعة',2000,'سوفيات',77,';22525;']];
+ [33,1756,'اسمير لون سيدار','قطعة',2000,'سوفيات',77,';22525;'],
+ [40,1901,'مشحاف سمائي 3 انج','قطعة',1500,'سوفيات',227,';1917;'],
+ [41,1902,'مشحاف سمائي 4 انج','قطعة',2000,'سوفيات',222,';1918;']];
  autoMap();
  buildItems();
  $('dropZone').hidden=true;
@@ -233,7 +277,8 @@ document.querySelectorAll('.tab').forEach(function(t){
   document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});
   document.querySelectorAll('.tabp').forEach(function(x){x.classList.remove('on')});
   t.classList.add('on');
-  $(t.getAttribute('data-t')).classList.add('on');
+  var p=$(t.getAttribute('data-t'));
+  if(p){p.classList.add('on')}
  };
 });
 ['dragover','drop'].forEach(function(ev){
@@ -245,10 +290,10 @@ document.addEventListener('drop',function(e){
 });
 (function(){
  var missing=[];
- ['handleFile','autoMap','analyze','renderAll'].forEach(function(f){
+ ['handleFile','autoMap','analyze','showMapModal','showGroupModal'].forEach(function(f){
   if(typeof window[f]!=='function'){missing.push('app1.js')}
  });
- ['openModal','search','capture','findByBarcode','listModal'].forEach(function(f){
+ ['openModal','search','listModal','findByBarcode'].forEach(function(f){
   if(typeof window[f]!=='function'){missing.push('app2.js')}
  });
  var b=$('sysState');
@@ -258,7 +303,7 @@ document.addEventListener('drop',function(e){
   b.style.borderColor='var(--bad)';
  }else{
   window.APP_READY=true;
-  b.textContent='✔ جاهز';
+  b.textContent='✔ جاهز 7.1';
   b.style.color='var(--ac2)';
   b.style.borderColor='var(--ac2)';
   log('النظام اكتمل تشغيله وجاهز للعمل','ok');

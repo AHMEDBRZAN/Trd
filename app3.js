@@ -1,3 +1,22 @@
+(function(){
+ var st=document.createElement('style');
+ st.textContent='table{background:#fff;color:#000}th,td{border:1px solid #999;color:#000}th{background:#e8e8e8;color:#000}';
+ document.head.appendChild(st);
+})();
+function exportRowsFile(title,rows){
+ var ws=XLSX.utils.json_to_sheet(rows);
+ var wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,ws,'القائمة');
+ XLSX.writeFile(wb,title+'.xlsx');
+ toast('تم التصدير ✔');
+}
+window.exportItemsList=function(){
+ if(window.CURLIST&&window.CURLIST.rows&&window.CURLIST.rows.length){
+  exportRowsFile(window.CURLIST.title,window.CURLIST.rows);
+ }else{
+  toast('لا توجد بيانات للتصدير',1);
+ }
+};
 $('btnExport').onclick=function(){
  var data=ITEMS.map(function(it){
   return {
@@ -11,35 +30,126 @@ $('btnExport').onclick=function(){
    'أسماء بديلة':(it.aliases||[]).join('، ')
   };
  });
- var ws=XLSX.utils.json_to_sheet(data);
- var wb=XLSX.utils.book_new();
- XLSX.utils.book_append_sheet(wb,ws,'الأصناف');
- XLSX.writeFile(wb,'items_export.xlsx');
- toast('تم التصدير ✔');
+ exportRowsFile('الأصناف',data);
 };
-$('btnSaveSession').onclick=function(){
- try{
-  localStorage.setItem('session',JSON.stringify({ITEMS:ITEMS,HEADERS:HEADERS,MAP:MAP,RAWROWS:RAWROWS}));
-  toast('حُفظت الجلسة ✔');
- }catch(e){
-  toast('الملف كبير على الحفظ المحلي',1);
+/* ====== مدير الجلسات (بدون مدة انتهاء) ====== */
+var SESSIONS=load('sessions',{});
+var CURSID=null;
+var CURFILE='';
+window.markLoaded=function(fname){
+ CURFILE=fname||CURFILE;
+ CURSID=null;
+ updateSessionBtn();
+};
+function updateSessionBtn(){
+ var n=Object.keys(SESSIONS).length;
+ var b=$('btnResume');
+ if(n>0){
+  b.hidden=false;
+  b.textContent='⏳ الجلسات ('+n+')';
+ }else{
+  b.hidden=true;
  }
-};
-if(localStorage.getItem('session')){
- $('btnResume').hidden=false;
 }
-$('btnResume').onclick=function(){
- var s=JSON.parse(localStorage.getItem('session'));
- ITEMS=s.ITEMS;
- HEADERS=s.HEADERS;
- MAP=s.MAP;
- RAWROWS=s.RAWROWS;
+function saveCurrentSession(){
+ if(!ITEMS.length){
+  toast('لا توجد بيانات لحفظها — ارفع ملفًا أولًا',1);
+  return;
+ }
+ var id=CURSID||String(Date.now());
+ var name=(SESSIONS[id]&&SESSIONS[id].name)?SESSIONS[id].name:(CURFILE||('جلسة '+new Date().toLocaleString()));
+ SESSIONS[id]={name:name,t:Date.now(),ITEMS:ITEMS,HEADERS:HEADERS,MAP:MAP,RAWROWS:RAWROWS};
+ try{
+  localStorage.setItem('sessions',JSON.stringify(SESSIONS));
+  CURSID=id;
+  updateSessionBtn();
+  toast('💾 حُفظت الجلسة: '+name);
+ }catch(e){
+  delete SESSIONS[id];
+  toast('مساحة التخزين ممتلئة — احذف جلسة قديمة أولًا',1);
+ }
+}
+$('btnSaveSession').onclick=saveCurrentSession;
+function restoreSession(id){
+ var s=SESSIONS[id];
+ if(!s){
+  toast('الجلسة غير موجودة',1);
+  return;
+ }
+ ITEMS=s.ITEMS||[];
+ HEADERS=s.HEADERS||[];
+ MAP=s.MAP||{};
+ RAWROWS=s.RAWROWS||[];
+ CURSID=id;
+ CURFILE=s.name;
  $('dropZone').hidden=true;
  showWork();
  renderAll();
- log('استُعيدت الجلسة السابقة','ok');
- toast('تمت المتابعة ✔');
-};
+ $('modal').hidden=true;
+ toast('✔ فُتحت الجلسة: '+s.name);
+}
+function showSessionsModal(){
+ var ids=Object.keys(SESSIONS).sort(function(a,b){
+  return (SESSIONS[b].t||0)-(SESSIONS[a].t||0);
+ });
+ $('mTitle').textContent='الجلسات المحفوظة ('+ids.length+')';
+ var h='<div class="row" style="margin-bottom:8px"><button class="btn" id="btnSaveNow">💾 حفظ الجلسة الحالية</button></div>';
+ h=h+'<div class="list">';
+ if(!ids.length){
+  h=h+'<p class="mut">لا جلسات محفوظة بعد — ارفع ملفًا ثم اضغط "حفظ الجلسة".</p>';
+ }
+ ids.forEach(function(id){
+  var s=SESSIONS[id];
+  var d=new Date(s.t||0);
+  h=h+'<div class="item" style="flex-wrap:wrap">';
+  h=h+'<div style="flex:1;min-width:150px"><b>'+s.name+'</b>';
+  h=h+'<div class="mut small">'+(s.ITEMS?s.ITEMS.length:0)+' صنف • '+d.toLocaleString();
+  if(id===CURSID){h=h+' • <span class="sim">مفتوحة الآن</span>'}
+  h=h+'</div></div>';
+  h=h+'<button class="btn" data-sopen="'+id+'">فتح</button>';
+  h=h+'<button class="btn ghost" data-sren="'+id+'">✏️</button>';
+  h=h+'<button class="btn ghost" data-sdel="'+id+'">🗑</button>';
+  h=h+'</div>';
+ });
+ h=h+'</div>';
+ $('mBody').innerHTML=h;
+ $('modal').hidden=false;
+ $('btnSaveNow').onclick=function(){
+  saveCurrentSession();
+  showSessionsModal();
+ };
+ $('mBody').querySelectorAll('[data-sopen]').forEach(function(b){
+  b.onclick=function(){restoreSession(b.getAttribute('data-sopen'))};
+ });
+ $('mBody').querySelectorAll('[data-sren]').forEach(function(b){
+  b.onclick=function(){
+   var id=b.getAttribute('data-sren');
+   var nn=prompt('التسمية الجديدة للجلسة:',SESSIONS[id].name);
+   if(nn&&nn.trim()){
+    SESSIONS[id].name=nn.trim();
+    saveLS('sessions',SESSIONS);
+    showSessionsModal();
+    toast('تمت إعادة التسمية ✔');
+   }
+  };
+ });
+ $('mBody').querySelectorAll('[data-sdel]').forEach(function(b){
+  b.onclick=function(){
+   var id=b.getAttribute('data-sdel');
+   if(confirm('حذف الجلسة "'+SESSIONS[id].name+'" نهائيًا؟')){
+    delete SESSIONS[id];
+    if(CURSID===id){CURSID=null}
+    saveLS('sessions',SESSIONS);
+    updateSessionBtn();
+    showSessionsModal();
+    toast('حُذفت الجلسة 🗑');
+   }
+  };
+ });
+}
+$('btnResume').onclick=showSessionsModal;
+updateSessionBtn();
+/* ====== بقية النظام ====== */
 $('btnDemo').onclick=function(){
  HEADERS=['#','الرمز','اسم المادة','الوحدة','سعر المبيع','بطاقة مجموعة','الكمية','الباركود'];
  RAWROWS=[

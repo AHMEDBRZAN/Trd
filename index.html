@@ -18,12 +18,11 @@ main{max-width:1100px;margin:16px auto;padding:0 14px;display:flex;flex-directio
 .btn{background:var(--ac);color:#04222b;border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:14px}
 .btn.ghost{background:var(--card2);color:var(--tx);border:1px solid var(--bd)}
 .btn.big{font-size:17px;padding:13px 26px}
-.btn:hover{filter:brightness(1.1)}
 .mut{color:var(--mut)} .small{font-size:12px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .grow{flex:1;min-width:200px}
-.wrap{flex-wrap:wrap}
 .inp{background:#0b1526;border:1px solid var(--bd);color:var(--tx);border-radius:10px;padding:11px 14px;font-size:15px;width:100%}
+.hid{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .grid.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:10px}
 .mapitem{background:var(--card2);border:1px solid var(--bd);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;font-size:13px}
 .mapitem select{background:#0b1526;color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px}
@@ -41,7 +40,6 @@ main{max-width:1100px;margin:16px auto;padding:0 14px;display:flex;flex-directio
 .tabp{display:none}.tabp.on{display:block}
 .list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .item{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;cursor:pointer}
-.item:hover{border-color:var(--ac)}
 .item img{width:52px;height:52px;object-fit:cover;border-radius:8px;background:#000}
 .item .ph{width:52px;height:52px;border-radius:8px;background:#0b1526;display:flex;align-items:center;justify-content:center;font-size:22px}
 .item b{display:block}
@@ -73,12 +71,13 @@ th{background:var(--card2)}
 <body>
 <header>
  <div class="row"><span style="font-size:26px">📦</span>
-  <div><b>دليل الأصناف الذكي</b> <span class="badge">الإصدار 3.0</span><div class="mut small">قراءة Excel • تحليل عميق • بحث • باركود • تعرف بالصورة • أسماء بديلة</div></div>
+  <div><b>دليل الأصناف الذكي</b> <span class="badge">الإصدار 4.0</span><div class="mut small">قراءة Excel • تحليل عميق • بحث • باركود • تعرف بالصورة • أسماء بديلة</div></div>
  </div>
  <div class="row">
+  <span id="sysState" class="badge" style="border-color:var(--bad);color:var(--bad)">⏳ بانتظار تشغيل النظام…</span>
   <button id="btnSaveSession" class="btn ghost" hidden>💾 حفظ الجلسة</button>
   <button id="btnExport" class="btn ghost" hidden>⬇️ تصدير Excel</button>
-  <label class="btn">📂 فتح ملف Excel<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden></label>
+  <label class="btn" id="lblOpen">📂 فتح ملف Excel<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hid"></label>
  </div>
 </header>
 <main>
@@ -89,7 +88,7 @@ th{background:var(--card2)}
   <h2>أرفق ملف الأصناف (Excel)</h2>
   <p class="mut">سيقرأ النظام الملف ويفهم محتواه بعمق تلقائيًا: الاسم، الرمز، الباركود، السعر، الكمية، الوحدة، المجموعة…</p>
   <div class="row" style="justify-content:center">
-   <label class="btn big">اختيار ملف<input type="file" id="fileInput2" accept=".xlsx,.xls,.csv" hidden></label>
+   <label class="btn big" id="lblOpen2">اختيار ملف<input type="file" id="fileInput2" accept=".xlsx,.xls,.csv" class="hid"></label>
    <button class="btn ghost" id="btnDemo">تجربة ببيانات نموذجية</button>
    <button class="btn ghost" id="btnResume" hidden>⏳ متابعة آخر جلسة</button>
   </div>
@@ -135,7 +134,7 @@ th{background:var(--card2)}
   <div id="tVision" class="tabp">
    <div class="row">
     <button class="btn" id="btnCam">▶ فتح الكاميرا</button>
-    <label class="btn ghost">🖼 اختيار صورة<input type="file" id="visionFile" accept="image/*" hidden></label>
+    <label class="btn ghost">🖼 اختيار صورة<input type="file" id="visionFile" accept="image/*" class="hid"></label>
     <button class="btn ghost" id="btnStopCam" hidden>⏹ إغلاق الكاميرا</button>
    </div>
    <video id="vVideo" autoplay playsinline hidden></video>
@@ -156,7 +155,7 @@ th{background:var(--card2)}
 <canvas id="vCanvas" hidden></canvas>
 
 <script>
-/* ================= الحالة ================= */
+/* ================= الأساسيات ================= */
 let WB=null,ITEMS=[],HEADERS=[],MAP={},RAWROWS=[],sheetName='';
 let ALIASES=load('aliasMap',{}),IMGS=load('imgMap',{});
 let scanner=null,lastScan=0,vStream=null,curSig=null,camOpen=false;
@@ -173,7 +172,7 @@ const nextFrame=()=>new Promise(r=>setTimeout(r,30));
 function toast(m,err){const t=$('toast');t.textContent=m;t.classList.add('show');if(err)t.classList.add('err');setTimeout(()=>{t.classList.remove('show');t.classList.remove('err')},2600)}
 function setLoad(on,txt,step){$('loader').hidden=!on;if(txt)$('loadTxt').textContent=txt;if(step!==undefined)$('loadStep').textContent=step;}
 function log(m,cls){$('log').hidden=false;const li=document.createElement('li');if(cls)li.className=cls;li.textContent='• '+m;$('logList').appendChild(li);}
-window.addEventListener('error',e=>log('خطأ غير متوقع: '+e.message,'er'));
+window.addEventListener('error',e=>log('خطأ: '+e.message,'er'));
 function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)();const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>{o.stop();a.close()},120)}catch(e){}}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);})}
 async function ensureLib(name,urls){
@@ -185,42 +184,51 @@ async function ensureLib(name,urls){
  return false;
 }
 
-/* ================= قراءة الملف مع مؤشر التحميل والسجل ================= */
+/* ================= ربط أزرار الرفع مبكرًا + تشخيص الضغط ================= */
+[['fileInput','lblOpen'],['fileInput2','lblOpen2']].forEach(pair=>{
+ const inp=$(pair[0]),lbl=$(pair[1]);
+ lbl.addEventListener('click',()=>log('ضغطة على زر اختيار الملف سُجّلت — يُفتح منتقي الملفات…'));
+ inp.addEventListener('change',onFile);
+});
 function onFile(e){
  const f=e.target.files&&e.target.files[0];
  e.target.value='';
- if(!f){toast('⚠ لم يتم اختيار أي ملف',1);log('لم يصل أي ملف من المنتقي','er');return;}
+ if(!f){toast('⚠ المنتقي أُغلق بدون ملف',1);log('لم يصل أي ملف من المنتقي (ربما البيئة تحجب المنتقي — افتح الصفحة في متصفح مباشرة)','er');return;}
+ log('✔ وصل الملف: '+f.name+' ('+fsize(f.size)+')','ok');
  handleFile(f);
 }
 async function handleFile(f){
- log('تم اختيار الملف: '+f.name+' — الحجم: '+fsize(f.size));
  if(!/\.(xlsx|xls|csv)$/i.test(f.name)){toast('⚠ صيغة غير مدعومة — اختر ملف Excel',1);log('امتداد مرفوض: '+f.name,'er');return;}
  setLoad(true,'جارٍ قراءة الملف…','الخطوة 1/3: تحميل '+f.name);
  if(!await ensureLib('XLSX',['https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'])){
-  setLoad(false);toast('✖ تعذر تحميل مكتبة قراءة Excel — تحقق من الإنترنت',1);log('فشل تحميل مكتبة XLSX من كل المصادر','er');return;}
- try{
-  const buf=await f.arrayBuffer();
-  log('تم تحميل البايتات بنجاح ('+fsize(buf.byteLength)+')','ok');
-  setLoad(true,'جارٍ فك ضغط الملف…','الخطوة 2/3: قراءة الأوراق والجداول');
-  await nextFrame();
-  WB=XLSX.read(buf,{type:'array'});
-  log('الأوراق المكتشفة: '+WB.SheetNames.join('، '),'ok');
-  if(!WB.SheetNames.length){setLoad(false);toast('✖ الملف لا يحتوي أوراقًا',1);log('لا أوراق داخل الملف','er');return;}
-  setLoad(true,'جارٍ فهم الأعمدة…','الخطوة 3/3: بناء الفهارس والبحث الذكي');
-  await nextFrame();
-  $('sheetPick').innerHTML=WB.SheetNames.map(s=>`<button class="chip" data-s="${s}">📄 ${s}</button>`).join('');
-  $('sheetPick').querySelectorAll('button').forEach(b=>b.onclick=()=>useSheet(b.dataset.s));
-  useSheet(WB.SheetNames[0]);
-  $('dropZone').hidden=true;showWork();showFileStat(f);
-  setLoad(false);window.scrollTo(0,0);
-  log('✔ اكتمل التحميل — الأصناف المقروءة: '+ITEMS.length,'ok');
-  toast('✔ اكتمل التحميل: '+fmt(ITEMS.length)+' صنف جاهز');
-  if(!ITEMS.length){toast('⚠ لم تُقرأ أصناف — صحّح عمود "اسم المادة" في الفهم الآلي',1);log('تحذير: لم يُعثر على أصناف — راجع ربط الأعمدة','er');}
- }catch(e){
-  setLoad(false);console.error(e);
-  log('خطأ أثناء المعالجة: '+e.message,'er');
-  toast('✖ تعذرت قراءة الملف — تأكد أنه ملف Excel سليم غير تالف',1);
- }
+  setLoad(false);toast('✖ تعذر تحميل مكتبة Excel — تحقق من الإنترنت',1);log('فشل تحميل مكتبة XLSX من كل المصادر','er');return;}
+ const rd=new FileReader();
+ rd.onerror=()=>{setLoad(false);log('فشل FileReader في قراءة الملف','er');toast('✖ تعذرت قراءة الملف',1)};
+ rd.onload=async()=>{
+  try{
+   log('تم تحميل البايتات ('+fsize(rd.result.byteLength)+') — جارٍ فك الضغط','ok');
+   setLoad(true,'جارٍ فك ضغط الملف…','الخطوة 2/3: قراءة الأوراق');
+   await nextFrame();
+   WB=XLSX.read(rd.result,{type:'array'});
+   log('الأوراق المكتشفة: '+WB.SheetNames.join('، '),'ok');
+   if(!WB.SheetNames.length){setLoad(false);toast('✖ الملف بلا أوراق',1);return;}
+   setLoad(true,'جارٍ فهم الأعمدة…','الخطوة 3/3: بناء الفهارس');
+   await nextFrame();
+   $('sheetPick').innerHTML=WB.SheetNames.map(s=>`<button class="chip" data-s="${s}">📄 ${s}</button>`).join('');
+   $('sheetPick').querySelectorAll('button').forEach(b=>b.onclick=()=>useSheet(b.dataset.s));
+   useSheet(WB.SheetNames[0]);
+   $('dropZone').hidden=true;showWork();showFileStat(f);
+   setLoad(false);window.scrollTo(0,0);
+   log('✔ اكتمل التحميل — الأصناف: '+ITEMS.length,'ok');
+   toast('✔ اكتمل التحميل: '+fmt(ITEMS.length)+' صنف جاهز');
+   if(!ITEMS.length){toast('⚠ لم تُقرأ أصناف — صحّح عمود اسم المادة',1);log('لا أصناف — راجع ربط الأعمدة','er');}
+  }catch(err){
+   setLoad(false);console.error(err);
+   log('خطأ أثناء المعالجة: '+err.message,'er');
+   toast('✖ ملف تالف أو غير مدعوم',1);
+  }
+ };
+ rd.readAsArrayBuffer(f);
 }
 function showFileStat(f){
  $('fileStat').hidden=false;
@@ -238,7 +246,7 @@ function useSheet(name){
  if(hi<0)hi=0;
  HEADERS=rows[hi].map((c,i)=>String(c).trim()||('عمود '+(i+1)));
  RAWROWS=rows.slice(hi+1);
- log('ورقة "'+name+'": صف العناوين رقم '+(hi+1)+' — '+RAWROWS.length+' صف بيانات');
+ log('ورقة "'+name+'": العناوين بالصف '+(hi+1)+' — '+RAWROWS.length+' صف بيانات');
  autoMap();buildItems();renderAll();
  $('fileMeta').textContent=` — ورقة "${name}" — ${RAWROWS.length} صف — ${HEADERS.length} عمود`;
 }
@@ -255,7 +263,7 @@ function autoMap(){
  MAP.qty=find(h=>h.includes('كميه')||h.includes('qty'));
  MAP.unit=find(h=>h.includes('وحده'));
  MAP.group=find(h=>h.includes('بطاقه')||h.includes('مجموعه')||h.includes('فئه')||h.includes('تصنيف'));
- log('ربط الأعمدة: اسم='+(MAP.name+1)+'، رمز='+(MAP.code+1)+'، باركود='+(MAP.barcode+1)+'، سعر='+(MAP.price+1)+'، كمية='+(MAP.qty+1));
+ log('ربط الأعمدة: اسم='+(MAP.name+1)+' رمز='+(MAP.code+1)+' باركود='+(MAP.barcode+1)+' سعر='+(MAP.price+1)+' كمية='+(MAP.qty+1));
 }
 function buildItems(){
  ITEMS=[];
@@ -270,7 +278,7 @@ function buildItems(){
 }
 function showWork(){['mapSec','dash','tools','btnExport','btnSaveSession'].forEach(i=>$(i).hidden=false)}
 
-/* ================= الفهم + التحليل ================= */
+/* ================= التحليل ================= */
 function renderMapping(){
  $('mapGrid').innerHTML=Object.entries(FIELDS).map(([f,l])=>`
   <label class="mapitem"><span>${l}</span><select data-f="${f}">
@@ -305,7 +313,7 @@ function analyze(){
  $('groups').innerHTML=Object.entries(g).map(([k,v])=>`<span class="chip">🗂 ${k||'بدون مجموعة'}: ${v}</span>`).join('');
  $('alerts').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
   const L={neg,zero,nobar:noBar,noprice:noPrice,dups}[c.dataset.l];listModal('قائمة الأصناف',L);});
- $('colInsight').innerHTML='<table><tr><th>العمود</th><th>الدور المكتشف</th><th>معبأ</th><th>أرقام</th><th>عينة</th></tr>'+
+ $('colInsight').innerHTML='<table><tr><th>العمود</th><th>الدور</th><th>معبأ</th><th>أرقام</th><th>عينة</th></tr>'+
   HEADERS.map((h,i)=>{let f=0,n=0,smp='';RAWROWS.forEach(r=>{const v=String(r[i]).trim();if(v){f++;if(!smp&&v.length<30)smp=v;if(isFinite(parseFloat(v))n++}});
    const role=Object.keys(MAP).find(k=>MAP[k]===i);
    return `<tr><td>${h}</td><td>${role?FIELDS[role]:'—'}</td><td>${f}/${RAWROWS.length}</td><td>${n}</td><td>${smp}</td></tr>`}).join('')+'</table>';
@@ -315,7 +323,7 @@ function renderTable(){
   RAWROWS.slice(0,200).map(r=>'<tr>'+r.map(c=>`<td>${String(c)}</td>`).join('')+'</tr>').join('')+'</table>';
 }
 
-/* ================= البحث الذكي ================= */
+/* ================= البحث ================= */
 function search(q){
  q=normAr(q);const qd=digits(q);const out=[];
  for(const it of ITEMS){
@@ -332,7 +340,7 @@ function search(q){
 }
 $('q').addEventListener('input',e=>{
  const r=search(e.target.value);
- $('results').innerHTML=e.target.value?(r.map(itemCard).join('')||'<p class="mut">لا نتائج — جرّب اسمًا آخر أو أضف اسمًا بديلًا من بطاقة المادة</p>'):'';
+ $('results').innerHTML=e.target.value?(r.map(itemCard).join('')||'<p class="mut">لا نتائج</p>'):'';
  bindItems($('results'));
 });
 function itemCard(it){
@@ -356,7 +364,7 @@ function findByBarcode(q){
  return null;
 }
 function showScan(it,q){
- $('scanResult').innerHTML=it?itemCard(it):`<div class="item"><div class="ph">❓</div><div><b>باركود غير موجود في الملف</b><small>${q}</small></div></div>`;
+ $('scanResult').innerHTML=it?itemCard(it):`<div class="item"><div class="ph">❓</div><div><b>باركود غير موجود</b><small>${q}</small></div></div>`;
  bindItems($('scanResult'));
 }
 $('manualBar').addEventListener('keydown',e=>{if(e.key==='Enter'){const it=findByBarcode(e.target.value);showScan(it,e.target.value);if(it)beep();}});
@@ -400,7 +408,7 @@ function capture(src){
   return `<div class="item"><img src="${x.thumb}"/><div style="flex:1"><b>${it?it.name:'صنف محذوف'}</b><small>رمز: ${x.code}</small></div>
    <span class="sim">${Math.round(x.sim*100)}%</span>
    <button class="btn ghost" data-teach="${x.code}">تعليم ✔</button></div>`;
- }).join(''):'<p class="mut">لا توجد صور مرجعية بعد — علِّم النظام من بطاقة المادة (زر "إضافة صورة مرجعية").</p>';
+ }).join(''):'<p class="mut">لا صور مرجعية بعد — علِّم النظام من بطاقة المادة.</p>';
  $('vResults').querySelectorAll('[data-teach]').forEach(b=>b.onclick=()=>{
   IMGS[b.dataset.teach]=IMGS[b.dataset.teach]||[];IMGS[b.dataset.teach].push({sig:curSig.sig,thumb:curSig.thumb});
   saveLS('imgMap',IMGS);toast('تم تعليم النظام ✔');
@@ -420,7 +428,7 @@ $('btnStopCam').onclick=()=>{
  $('vVideo').hidden=true;$('btnStopCam').hidden=true;
  $('btnCam').textContent='▶ فتح الكاميرا';camOpen=false;
 };
-$('visionFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>capture(img);img.src=URL.createObjectURL(f);};
+$('visionFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>capture(img);img.src=URL.createObjectURL(f);});
 
 /* ================= بطاقة المادة ================= */
 function openModal(code){
@@ -434,17 +442,17 @@ function openModal(code){
    <span class="chip">الوحدة: ${it.unit||'—'}</span><span class="chip">المجموعة: ${it.group||'—'}</span>
    ${it.latin?`<span class="chip">${it.latin}</span>`:''}
   </div>
-  <h4>🏷 الأسماء البديلة (كما تسمّونها في المحل)</h4>
+  <h4>🏷 الأسماء البديلة</h4>
   <div class="chips" id="mAl">${it.aliases.map((a,i)=>`<span class="chip">${a} <i data-del="${i}" style="cursor:pointer">✖</i></span>`).join('')||'<span class="mut small">لا يوجد</span>'}</div>
-  <div class="row" style="margin-top:8px"><input id="mAlIn" class="inp grow" placeholder="أضف اسمًا شعبيًا… مثال: ايك كبير"/><button class="btn" id="mAlAdd">＋</button></div>
-  <h4>🖼 الصور المرجعية للتعرف</h4>
+  <div class="row" style="margin-top:8px"><input id="mAlIn" class="inp grow" placeholder="أضف اسمًا شعبيًا…"/><button class="btn" id="mAlAdd">＋</button></div>
+  <h4>🖼 الصور المرجعية</h4>
   <div class="chips">${imgs.map((im,i)=>`<img src="${im.thumb}" style="width:64px;height:64px;border-radius:8px" data-rm="${i}"/>`).join('')||'<span class="mut small">لا صور بعد</span>'}</div>
-  <label class="btn ghost" style="display:inline-block;margin-top:8px">＋ إضافة صورة مرجعية<input type="file" id="mImg" accept="image/*" hidden></label>`;
+  <label class="btn ghost" style="display:inline-block;margin-top:8px">＋ إضافة صورة مرجعية<input type="file" id="mImg" accept="image/*" class="hid"></label>`;
  $('modal').hidden=false;
  $('mAlAdd').onclick=()=>{const v=$('mAlIn').value.trim();if(!v)return;it.aliases.push(v);ALIASES[code]=it.aliases;saveLS('aliasMap',ALIASES);openModal(code);toast('أُضيف الاسم ✔');};
  $('mAl').querySelectorAll('[data-del]').forEach(x=>x.onclick=()=>{it.aliases.splice(+x.dataset.del,1);ALIASES[code]=it.aliases;saveLS('aliasMap',ALIASES);openModal(code);});
  $('mBody').querySelectorAll('[data-rm]').forEach(im=>im.onclick=()=>{imgs.splice(+im.dataset.rm,1);IMGS[code]=imgs;saveLS('imgMap',IMGS);openModal(code);});
- $('mImg').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{IMGS[code]=IMGS[code]||[];IMGS[code].push(sigFrom(img));saveLS('imgMap',IMGS);openModal(code);toast('أُضيفت الصورة المرجعية ✔');};img.src=URL.createObjectURL(f);};
+ $('mImg').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{IMGS[code]=IMGS[code]||[];IMGS[code].push(sigFrom(img));saveLS('imgMap',IMGS);openModal(code);toast('أُضيفت الصورة ✔');};img.src=URL.createObjectURL(f);});
 }
 $('mClose').onclick=()=>$('modal').hidden=true;
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').hidden=true};
@@ -463,7 +471,7 @@ $('btnExport').onclick=()=>{
 $('btnSaveSession').onclick=()=>{try{localStorage.setItem('session',JSON.stringify({ITEMS,HEADERS,MAP,RAWROWS}));toast('حُفظت الجلسة ✔')}catch(e){toast('الملف كبير على الحفظ المحلي',1)}};
 if(localStorage.getItem('session'))$('btnResume').hidden=false;
 $('btnResume').onclick=()=>{const s=JSON.parse(localStorage.getItem('session'));ITEMS=s.ITEMS;HEADERS=s.HEADERS;MAP=s.MAP;RAWROWS=s.RAWROWS;
- $('dropZone').hidden=true;showWork();renderAll();log('تمت استعادة الجلسة السابقة','ok');toast('تمت المتابعة ✔');};
+ $('dropZone').hidden=true;showWork();renderAll();log('استُعيدت الجلسة السابقة','ok');toast('تمت المتابعة ✔');};
 
 /* ================= بيانات تجريبية ================= */
 $('btnDemo').onclick=()=>{
@@ -483,17 +491,30 @@ $('btnDemo').onclick=()=>{
  renderAll();toast('بيانات تجريبية ✔');
 };
 
-/* ================= عام ================= */
+/* ================= التبويبات + الجاهزية ================= */
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
  document.querySelectorAll('.tabp').forEach(x=>x.classList.remove('on'));
  t.classList.add('on');$(t.dataset.t).classList.add('on');
 });
-$('fileInput').onchange=onFile;
-$('fileInput2').onchange=onFile;
 ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
-document.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
-if(!window.XLSX)log('تنبيه: مكتبة Excel لم تُحمَّل من الخادم الرئيسي — سيحمّلها النظام تلقائيًا عند أول ملف','er');
+document.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+window.APP_READY=true;
+const ss=$('sysState');ss.textContent='✔ النظام جاهز — الإصدار 4.0';ss.style.color='var(--ac2)';ss.style.borderColor='var(--ac2)';
+log('النظام اكتمل تشغيله وجاهز للعمل','ok');
+</script>
+<script>
+/* مراقب مستقل: يعمل حتى لو مات الكود الرئيسي */
+window.addEventListener('error',function(e){
+ var b=document.getElementById('sysState');
+ if(b){b.textContent='⚠ خطأ كود: '+(e.message||'غير معروف');b.style.color='var(--bad)';b.style.borderColor='var(--bad)';}
+},true);
+setTimeout(function(){
+ if(!window.APP_READY){
+  var b=document.getElementById('sysState');
+  if(b){b.textContent='⚠ الكود لم يعمل كاملًا — نسخة قديمة؟ لصق ناقص؟ افتح في متصفح مباشرة';}
+ }
+},4000);
 </script>
 </body>
 </html>

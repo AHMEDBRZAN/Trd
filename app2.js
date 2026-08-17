@@ -102,12 +102,11 @@ $('btnScanStart').onclick=function(){
   stopScan();
  });
 };
-/* ====== بطاقة المادة (بدون صور) ====== */
 function openModal(code){
  var it=null;
  ITEMS.forEach(function(i){if(i.code===code){it=i}});
  if(!it){return}
- if(CUR_SCREEN!=='item'){MSTACK.push(CURRENT_REOPEN)}
+ if(!NO_PUSH&&CUR_SCREEN!=='item'){MSTACK.push(CURRENT_REOPEN)}
  CURRENT_REOPEN=null;
  CUR_SCREEN='item';
  lockScroll(true);
@@ -144,21 +143,23 @@ function openModal(code){
   };
  });
 }
-$('mClose').onclick=function(){
+/* ✖ يرجع خطوة واحدة فقط */
+function closeModalOne(){
  var prev=MSTACK.pop();
  if(prev){
-  CURRENT_REOPEN=prev;
+  NO_PUSH=true;
   prev();
+  NO_PUSH=false;
  }else{
   CURRENT_REOPEN=null;
   CUR_SCREEN=null;
   $('modal').hidden=true;
   lockScroll(false);
  }
-};
-/* ====== القوائم مع الفرز ====== */
+}
+$('mClose').onclick=closeModalOne;
 function listModal(title,arr,key){
- if(CUR_SCREEN!=='list'){MSTACK.push(CURRENT_REOPEN)}
+ if(!NO_PUSH&&CUR_SCREEN!=='list'){MSTACK.push(CURRENT_REOPEN)}
  CURLIST_TITLE=title;
  CURLIST_ARR=arr;
  CURLIST_KEY=key||'';
@@ -204,10 +205,10 @@ function renderListModal(){
   h=h+'<option value="'+o[0]+'"'+(CURLIST_SORT===o[0]?' selected':'')+'>'+o[1]+'</option>';
  });
  h=h+'</select></div>';
- h=h+'<div class="list">'+(arr.map(itemCard).join('')||'<p class="mut">لا يوجد</p>')+'</div>';
+ h=h+'<div class="list" id="listBox"></div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
- bindItems($('mBody'));
+ renderChunked($('listBox'),arr,itemCard);
  $('btnExpList').onclick=function(){if(window.exportItemsList){window.exportItemsList()}};
  $('sortSel').onchange=function(e){
   CURLIST_SORT=e.target.value;

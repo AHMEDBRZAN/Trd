@@ -12,7 +12,7 @@ var vStream=null;
 var curSig=null;
 var camOpen=false;
 function $(id){return document.getElementById(id)}
-var FIELDS={name:'اسم المادة',latin:'الاسم اللاتيني',code:'الرمز',barcode:'الباركود',price:'سعر المبيع',qty:'الكمية',unit:'الوحدة',group:'المجموعة/بطاقة'};
+var FIELDS={name:'اسم المادة',code:'الرمز',barcode:'الباركود',price:'سعر المبيع',qty:'الكمية',unit:'الوحدة',group:'المجموعة/بطاقة'};
 function load(k,d){
  try{
   var v=JSON.parse(localStorage.getItem(k));
@@ -65,7 +65,6 @@ function log(m,cls){
  li.textContent='• '+m;
  $('logList').appendChild(li);
 }
-window.addEventListener('error',function(e){log('خطأ: '+e.message,'er')});
 function beep(){
  try{
   var AC=window.AudioContext||window.webkitAudioContext;
@@ -232,7 +231,7 @@ function useSheet(name){
  $('fileMeta').textContent=' — ورقة '+name+' — '+RAWROWS.length+' صف — '+HEADERS.length+' عمود';
 }
 function autoMap(){
- MAP={name:-1,latin:-1,code:-1,barcode:-1,price:-1,qty:-1,unit:-1,group:-1};
+ MAP={name:-1,code:-1,barcode:-1,price:-1,qty:-1,unit:-1,group:-1};
  var used={};
  function find(t){
   for(var i=0;i<HEADERS.length;i=i+1){
@@ -247,11 +246,8 @@ function autoMap(){
  }
  MAP.name=find(function(h){return h.indexOf('اسم الماده')>=0||h.indexOf('اسم المادة')>=0});
  if(MAP.name<0){
-  MAP.name=find(function(h){
-   return h.indexOf('اسم')>=0&&h.indexOf('لاتيني')<0&&h.indexOf('انكليزي')<0&&h.indexOf('انجليزي')<0;
-  });
+  MAP.name=find(function(h){return h.indexOf('اسم')>=0});
  }
- MAP.latin=find(function(h){return h.indexOf('لاتيني')>=0||h.indexOf('انكليزي')>=0||h.indexOf('انجليزي')>=0||h.indexOf('latin')>=0});
  MAP.barcode=find(function(h){return h.indexOf('باركود')>=0||h.indexOf('barcode')>=0});
  MAP.code=find(function(h){return h.indexOf('الرمز')>=0||h.indexOf('رمز')>=0||h.indexOf('كود')>=0});
  MAP.price=find(function(h){return h.indexOf('سعر')>=0});
@@ -272,7 +268,6 @@ function buildItems(){
   var code=String(g(MAP.code)).trim();
   ITEMS.push({
    name:name,
-   latin:String(g(MAP.latin)).trim(),
    code:code,
    barcode:String(g(MAP.barcode)).trim(),
    price:num(g(MAP.price)),

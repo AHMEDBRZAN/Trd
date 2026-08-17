@@ -1,11 +1,13 @@
 (function(){
  var st=document.createElement('style');
- st.textContent='table{background:#fff;color:#000}th,td{border:1px solid #999;color:#000}th{background:#e8e8e8;color:#000}';
+ st.textContent='table{background:#fff;color:#000}th,td{border:1px solid #999;color:#000}th{background:#e8e8e8;color:#000}'
+ +'.item{flex-wrap:wrap}.item b{font-size:13px}.item small{font-size:11px}.item .ph{font-size:26px}';
  document.head.appendChild(st);
 })();
 function exportRowsFile(title,rows){
  var ws=XLSX.utils.json_to_sheet(rows);
  var wb=XLSX.utils.book_new();
+ wb.Workbook={Views:[{RTL:true}]};
  XLSX.utils.book_append_sheet(wb,ws,'القائمة');
  XLSX.writeFile(wb,title+'.xlsx');
  toast('تم التصدير ✔');
@@ -17,22 +19,75 @@ window.exportItemsList=function(){
   toast('لا توجد بيانات للتصدير',1);
  }
 };
-$('btnExport').onclick=function(){
- var data=ITEMS.map(function(it){
-  return {
-   'الرمز':it.code,
-   'اسم المادة':it.name,
-   'الباركود':it.barcode,
-   'سعر المبيع':it.price,
-   'الكمية':it.qty,
-   'الوحدة':it.unit,
-   'المجموعة':it.group,
-   'أسماء بديلة':(it.aliases||[]).join('، ')
+/* ====== محرر أعمدة التصدير ====== */
+var COLT={seq:'تسلسل',code:'الرمز',name:'اسم المادة',unit:'الوحدة',price:'سعر المبيع',group:'المجموعة',qty:'الكمية',barcode:'الباركود',aliases:'أسماء بديلة'};
+var EXPC=load('expConf',null);
+if(!EXPC){
+ EXPC=[{k:'seq',on:1},{k:'code',on:1},{k:'name',on:1},{k:'unit',on:1},{k:'price',on:1},{k:'group',on:1},{k:'qty',on:1},{k:'barcode',on:0},{k:'aliases',on:0}];
+}
+function itemRowByOrder(it,idx){
+ var o={};
+ EXPC.forEach(function(c){
+  if(!c.on){return}
+  if(c.k==='seq'){o['تسلسل']=idx+1}
+  if(c.k==='code'){o['الرمز']=it.code}
+  if(c.k==='name'){o['اسم المادة']=it.name}
+  if(c.k==='unit'){o['الوحدة']=it.unit}
+  if(c.k==='price'){o['سعر المبيع']=it.price}
+  if(c.k==='group'){o['المجموعة']=it.group}
+  if(c.k==='qty'){o['الكمية']=it.qty}
+  if(c.k==='barcode'){o['الباركود']=it.barcode}
+  if(c.k==='aliases'){o['أسماء بديلة']=(it.aliases||[]).join('، ')}
+ });
+ return o;
+}
+function doExport(){
+ var rows=ITEMS.map(function(it,idx){return itemRowByOrder(it,idx)});
+ exportRowsFile('الأصناف',rows);
+}
+function showExportModal(){
+ window.CURRENT_REOPEN=function(){showExportModal()};
+ lockScroll(true);
+ $('mTitle').textContent='تصدير Excel — ترتيب الأعمدة (يمين→يسار)';
+ var h='<div class="row" style="margin-bottom:8px"><button class="btn" id="expNow">⬇️ تصدير مباشر</button></div>';
+ h=h+'<div class="list">';
+ EXPC.forEach(function(c,i){
+  h=h+'<div class="item"><div style="flex:1"><b>'+COLT[c.k]+'</b></div>';
+  h=h+'<button class="btn ghost" data-up="'+i+'">⬆</button>';
+  h=h+'<button class="btn ghost" data-dn="'+i+'">⬇</button>';
+  h=h+'<button class="btn ghost" data-tg="'+i+'">'+(c.on?'ظاهر ✔':'مخفي ✖')+'</button>';
+  h=h+'</div>';
+ });
+ h=h+'</div><div class="row" style="margin-top:8px"><button class="btn" id="expEdit">⬇️ تصدير بالترتيب أعلاه</button></div>';
+ $('mBody').innerHTML=h;
+ $('modal').hidden=false;
+ $('expNow').onclick=doExport;
+ $('expEdit').onclick=function(){
+  saveLS('expConf',EXPC);
+  doExport();
+ };
+ $('mBody').querySelectorAll('[data-up]').forEach(function(b){
+  b.onclick=function(){
+   var i=Number(b.getAttribute('data-up'));
+   if(i>0){var t=EXPC[i-1];EXPC[i-1]=EXPC[i];EXPC[i]=t;showExportModal()}
   };
  });
- exportRowsFile('الأصناف',data);
-};
-/* ====== مدير الجلسات (بدون مدة انتهاء) ====== */
+ $('mBody').querySelectorAll('[data-dn]').forEach(function(b){
+  b.onclick=function(){
+   var i=Number(b.getAttribute('data-dn'));
+   if(i<EXPC.length-1){var t=EXPC[i+1];EXPC[i+1]=EXPC[i];EXPC[i]=t;showExportModal()}
+  };
+ });
+ $('mBody').querySelectorAll('[data-tg]').forEach(function(b){
+  b.onclick=function(){
+   var i=Number(b.getAttribute('data-tg'));
+   EXPC[i].on=EXPC[i].on?0:1;
+   showExportModal();
+  };
+ });
+}
+$('btnExport').onclick=showExportModal;
+/* ====== مدير الجلسات ====== */
 var SESSIONS=load('sessions',{});
 var CURSID=null;
 var CURFILE='';
@@ -86,9 +141,12 @@ function restoreSession(id){
  showWork();
  renderAll();
  $('modal').hidden=true;
+ lockScroll(false);
  toast('✔ فُتحت الجلسة: '+s.name);
 }
 function showSessionsModal(){
+ window.CURRENT_REOPEN=function(){showSessionsModal()};
+ lockScroll(true);
  var ids=Object.keys(SESSIONS).sort(function(a,b){
   return (SESSIONS[b].t||0)-(SESSIONS[a].t||0);
  });
@@ -101,7 +159,7 @@ function showSessionsModal(){
  ids.forEach(function(id){
   var s=SESSIONS[id];
   var d=new Date(s.t||0);
-  h=h+'<div class="item" style="flex-wrap:wrap">';
+  h=h+'<div class="item">';
   h=h+'<div style="flex:1;min-width:150px"><b>'+s.name+'</b>';
   h=h+'<div class="mut small">'+(s.ITEMS?s.ITEMS.length:0)+' صنف • '+d.toLocaleString();
   if(id===CURSID){h=h+' • <span class="sim">مفتوحة الآن</span>'}
@@ -190,7 +248,7 @@ document.addEventListener('drop',function(e){
  ['handleFile','autoMap','analyze','renderAll'].forEach(function(f){
   if(typeof window[f]!=='function'){missing.push('app1.js')}
  });
- ['openModal','search','capture','findByBarcode'].forEach(function(f){
+ ['openModal','search','capture','findByBarcode','listModal'].forEach(function(f){
   if(typeof window[f]!=='function'){missing.push('app2.js')}
  });
  var b=$('sysState');

@@ -181,6 +181,7 @@ function processBuf(buf,f){
    window.scrollTo(0,0);
    log('✔ اكتمل التحميل — الأصناف: '+ITEMS.length,'ok');
    toast('✔ اكتمل التحميل: '+fmt(ITEMS.length)+' صنف جاهز');
+   if(window.markLoaded){window.markLoaded(f.name)}
    if(!ITEMS.length){
     toast('⚠ لم تُقرأ أصناف — صحّح عمود اسم المادة',1);
     log('لا أصناف — راجع ربط الأعمدة','er');
@@ -199,8 +200,11 @@ function showFileStat(f){
  h=h+WB.SheetNames.length+' ورقة • ';
  h=h+fmt(RAWROWS.length)+' صف • ';
  h=h+fmt(ITEMS.length)+' صنف • ';
- h=h+'الحالة: <b style="color:var(--ac2)">مكتمل ✔</b>';
+ h=h+'الحالة: <b style="color:var(--ac2)">مكتمل ✔</b> ';
+ h=h+'<label class="btn ghost" style="cursor:pointer">📂 رفع ملف آخر<input type="file" id="fileInput3" accept=".xlsx,.xls,.csv" class="hid"></label>';
  $('fileStat').innerHTML=h;
+ var fi3=$('fileInput3');
+ if(fi3){fi3.addEventListener('change',onFile)}
 }
 function useSheet(name){
  sheetName=name;
@@ -283,7 +287,6 @@ function showWork(){
  var ids=['mapSec','dash','tools','btnExport','btnSaveSession'];
  ids.forEach(function(i){$(i).hidden=false});
 }
-/* ====== كشف الأصناف المتشابهة ====== */
 function simNames(a,b){
  if(a===b){return 1}
  if(a.indexOf(b)>=0||b.indexOf(a)>=0){return 0.9}
@@ -334,7 +337,24 @@ function pairRow(it){
 }
 function showSimModal(){
  $('mTitle').textContent='الأصناف المتشابهة ('+SIM.length+')';
- var h='<div class="list">';
+ var rows=SIM.map(function(p){
+  var a=ITEMS[p.a];
+  var b=ITEMS[p.b];
+  return {
+   'المادة الأولى':a.name,
+   'رمز الأولى':a.code,
+   'سعر الأولى':a.price,
+   'كمية الأولى':a.qty,
+   'المادة الثانية':b.name,
+   'رمز الثانية':b.code,
+   'سعر الثانية':b.price,
+   'كمية الثانية':b.qty,
+   'نسبة التشابه %':Math.round(p.s*100)
+  };
+ });
+ window.CURLIST={title:'الأصناف المتشابهة',rows:rows};
+ var h='<div class="row" style="margin-bottom:8px"><button class="btn ghost" id="btnExpList">⬇️ تصدير هذه القائمة Excel</button></div>';
+ h=h+'<div class="list">';
  if(!SIM.length){
   h=h+'<p class="mut">لا توجد أصناف متشابهة ✔</p>';
  }
@@ -353,8 +373,9 @@ function showSimModal(){
  $('mBody').querySelectorAll('[data-open]').forEach(function(btn){
   btn.onclick=function(){openModal(btn.getAttribute('data-open'))};
  });
+ var be=$('btnExpList');
+ if(be){be.onclick=function(){if(window.exportItemsList){window.exportItemsList()}};}
 }
-/* ====== بقية العرض ====== */
 function renderMapping(){
  var html='';
  Object.keys(FIELDS).forEach(function(f){

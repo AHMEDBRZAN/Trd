@@ -122,7 +122,6 @@ function onFile(e){
  e.target.value='';
  if(!f){
   toast('⚠ المنتقي أُغلق بدون ملف',1);
-  log('لم يصل أي ملف — إن تكرر ذلك افتح الصفحة في متصفح مباشرة','er');
   return;
  }
  log('✔ وصل الملف: '+f.name+' ('+fsize(f.size)+')','ok');
@@ -131,7 +130,6 @@ function onFile(e){
 function handleFile(f){
  if(!/\.(xlsx|xls|csv)$/i.test(f.name)){
   toast('⚠ صيغة غير مدعومة — اختر ملف Excel',1);
-  log('امتداد مرفوض: '+f.name,'er');
   return;
  }
  setLoad(true,'جارٍ قراءة الملف…','الخطوة 1/3: تحميل '+f.name);
@@ -140,13 +138,11 @@ function handleFile(f){
   if(!ok){
    setLoad(false);
    toast('✖ تعذر تحميل مكتبة Excel — تحقق من الإنترنت',1);
-   log('فشل تحميل مكتبة XLSX من كل المصادر','er');
    return;
   }
   var rd=new FileReader();
   rd.onerror=function(){
    setLoad(false);
-   log('فشل FileReader في قراءة الملف','er');
    toast('✖ تعذرت قراءة الملف',1);
   };
   rd.onload=function(){processBuf(rd.result,f)};
@@ -184,7 +180,6 @@ function processBuf(buf,f){
    if(window.markLoaded){window.markLoaded(f.name)}
    if(!ITEMS.length){
     toast('⚠ لم تُقرأ أصناف — صحّح عمود اسم المادة',1);
-    log('لا أصناف — راجع ربط الأعمدة','er');
    }
   });
  }).catch(function(err){
@@ -229,7 +224,6 @@ function useSheet(name){
   return 'عمود '+(idx+1);
  });
  RAWROWS=rows.slice(hi+1);
- log('ورقة '+name+': العناوين بالصف '+(hi+1)+' — '+RAWROWS.length+' صف بيانات');
  autoMap();
  buildItems();
  renderAll();
@@ -287,9 +281,22 @@ function showWork(){
  var ids=['mapSec','dash','tools','btnExport','btnSaveSession'];
  ids.forEach(function(i){$(i).hidden=false});
 }
+/* ====== التشابه الذكي: يستبعد اختلاف المقاسات ====== */
+var UNIT_WORDS={'انج':1,'انش':1,'بوصه':1,'بوصة':1,'لتر':1,'ل':1,'مل':1,'كيلو':1,'كغم':1,'غم':1,'سم':1,'مم':1,'متر':1,'م':1,'l':1,'kg':1,'g':1,'ltr':1};
+function isSizeToken(t){
+ if(/^[0-9٠-٩]+([.,][0-9٠-٩]+)?$/.test(t)){return true}
+ if(UNIT_WORDS[t]){return true}
+ if(/^[0-9٠-٩]+([.,][0-9٠-٩]+)?[a-zأ-ي]{1,3}$/.test(t)){return true}
+ return false;
+}
+function stripSize(s){
+ return s.split(' ').filter(function(t){
+  return t.length>0&&!isSizeToken(t);
+ }).join(' ');
+}
 function simNames(a,b){
  if(a===b){return 1}
- if(a.indexOf(b)>=0||b.indexOf(a)>=0){return 0.9}
+ if(stripSize(a)===stripSize(b)){return 0}
  var ta=a.split(' ');
  var tb=b.split(' ');
  var sa={};
@@ -336,6 +343,8 @@ function pairRow(it){
  return h;
 }
 function showSimModal(){
+ window.CURRENT_REOPEN=function(){showSimModal()};
+ lockScroll(true);
  $('mTitle').textContent='الأصناف المتشابهة ('+SIM.length+')';
  var rows=SIM.map(function(p){
   var a=ITEMS[p.a];
@@ -450,7 +459,7 @@ function analyze(){
     return;
    }
    var L={neg:neg,zero:zero,nobar:noBar,noprice:noPrice,dups:dups}[key];
-   listModal('قائمة الأصناف',L);
+   listModal('قائمة الأصناف',L,key);
   };
  });
  var rows='<table><tr><th>العمود</th><th>الدور</th><th>معبأ</th><th>أرقام</th><th>عينة</th></tr>';

@@ -4,6 +4,7 @@ var HEADERS=[];
 var MAP={};
 var RAWROWS=[];
 var sheetName='';
+var SIM=[];
 var ALIASES=load('aliasMap',{});
 var IMGS=load('imgMap',{});
 var scanner=null;
@@ -282,6 +283,78 @@ function showWork(){
  var ids=['mapSec','dash','tools','btnExport','btnSaveSession'];
  ids.forEach(function(i){$(i).hidden=false});
 }
+/* ====== كشف الأصناف المتشابهة ====== */
+function simNames(a,b){
+ if(a===b){return 1}
+ if(a.indexOf(b)>=0||b.indexOf(a)>=0){return 0.9}
+ var ta=a.split(' ');
+ var tb=b.split(' ');
+ var sa={};
+ var sb={};
+ ta.forEach(function(t){if(t.length>1){sa[t]=1}});
+ tb.forEach(function(t){if(t.length>1){sb[t]=1}});
+ var inter=0;
+ Object.keys(sa).forEach(function(t){
+  if(sb[t]){inter=inter+1}
+ });
+ var na=Object.keys(sa).length;
+ var nb=Object.keys(sb).length;
+ if(na+nb===0){return 0}
+ return 2*inter/(na+nb);
+}
+function computeSim(){
+ SIM=[];
+ var nn=ITEMS.map(function(it){return normAr(it.name)});
+ var byFirst={};
+ nn.forEach(function(s,idx){
+  var first=s.split(' ')[0]||s;
+  byFirst[first]=byFirst[first]||[];
+  byFirst[first].push(idx);
+ });
+ Object.keys(byFirst).forEach(function(k){
+  var arr=byFirst[k];
+  for(var i=0;i<arr.length;i=i+1){
+   for(var j=i+1;j<arr.length;j=j+1){
+    if(SIM.length>=200){return}
+    var s=simNames(nn[arr[i]],nn[arr[j]]);
+    if(s>=0.6){
+     SIM.push({a:arr[i],b:arr[j],s:s});
+    }
+   }
+  }
+ });
+ SIM.sort(function(x,y){return y.s-x.s});
+}
+function pairRow(it){
+ var h='<div class="row" style="justify-content:space-between;gap:6px">';
+ h=h+'<div><b>'+it.name+'</b>';
+ h=h+'<div class="mut small">السعر: '+fmt(it.price)+' • الكمية: '+it.qty+' • رمز: '+it.code+'</div></div>';
+ h=h+'<button class="btn ghost" data-open="'+it.code+'">عرض</button></div>';
+ return h;
+}
+function showSimModal(){
+ $('mTitle').textContent='الأصناف المتشابهة ('+SIM.length+')';
+ var h='<div class="list">';
+ if(!SIM.length){
+  h=h+'<p class="mut">لا توجد أصناف متشابهة ✔</p>';
+ }
+ SIM.forEach(function(p){
+  var a=ITEMS[p.a];
+  var b=ITEMS[p.b];
+  h=h+'<div class="item" style="flex-direction:column;align-items:stretch;gap:8px">';
+  h=h+'<span class="sim small">👥 نسبة التشابه: '+Math.round(p.s*100)+'%</span>';
+  h=h+pairRow(a);
+  h=h+pairRow(b);
+  h=h+'</div>';
+ });
+ h=h+'</div>';
+ $('mBody').innerHTML=h;
+ $('modal').hidden=false;
+ $('mBody').querySelectorAll('[data-open]').forEach(function(btn){
+  btn.onclick=function(){openModal(btn.getAttribute('data-open'))};
+ });
+}
+/* ====== بقية العرض ====== */
 function renderMapping(){
  var html='';
  Object.keys(FIELDS).forEach(function(f){
@@ -326,6 +399,7 @@ function analyze(){
    if(seen[d]===2){dups.push(i)}
   }
  });
+ computeSim();
  var st='';
  st=st+'<div class="stat"><b>'+fmt(tot)+'</b><span>إجمالي الأصناف</span></div>';
  st=st+'<div class="stat"><b>'+fmt(withBar.length)+'</b><span>بباركود</span></div>';
@@ -338,6 +412,7 @@ function analyze(){
  al=al+'<span class="chip warn" data-l="nobar">بدون باركود: '+noBar.length+'</span>';
  al=al+'<span class="chip warn" data-l="noprice">بدون سعر: '+noPrice.length+'</span>';
  al=al+'<span class="chip bad" data-l="dups">باركود مكرر: '+dups.length+'</span>';
+ al=al+'<span class="chip warn" data-l="sim">👥 أصناف متشابهة: '+SIM.length+'</span>';
  $('alerts').innerHTML=al;
  var g={};
  ITEMS.forEach(function(i){g[i.group]=(g[i.group]||0)+1});
@@ -349,6 +424,10 @@ function analyze(){
  $('alerts').querySelectorAll('.chip').forEach(function(c){
   c.onclick=function(){
    var key=c.getAttribute('data-l');
+   if(key==='sim'){
+    showSimModal();
+    return;
+   }
    var L={neg:neg,zero:zero,nobar:noBar,noprice:noPrice,dups:dups}[key];
    listModal('قائمة الأصناف',L);
   };

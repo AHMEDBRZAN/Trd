@@ -259,7 +259,23 @@ $('modal').onclick=function(e){
 };
 function listModal(title,arr){
  $('mTitle').textContent=title+' ('+arr.length+')';
- $('mBody').innerHTML='<div class="list">'+(arr.map(itemCard).join('')||'<p class="mut">لا يوجد</p>')+'</div>';
+ var rows=arr.map(function(it){
+  return {
+   'الرمز':it.code,
+   'اسم المادة':it.name,
+   'الباركود':it.barcode,
+   'سعر المبيع':it.price,
+   'الكمية':it.qty,
+   'الوحدة':it.unit,
+   'المجموعة':it.group
+  };
+ });
+ window.CURLIST={title:title,rows:rows};
+ var h='<div class="row" style="margin-bottom:8px"><button class="btn ghost" id="btnExpList">⬇️ تصدير هذه القائمة Excel</button></div>';
+ h=h+'<div class="list">'+(arr.map(itemCard).join('')||'<p class="mut">لا يوجد</p>')+'</div>';
+ $('mBody').innerHTML=h;
  $('modal').hidden=false;
  bindItems($('mBody'));
+ var be=$('btnExpList');
+ if(be){be.onclick=function(){if(window.exportItemsList){window.exportItemsList()}};}
 }

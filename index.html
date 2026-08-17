@@ -65,12 +65,15 @@ th{background:var(--card2)}
 @keyframes sp{to{transform:rotate(360deg)}}
 #loadTxt{font-weight:800;font-size:17px}
 .filestat{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#0d2b1e;border:1px solid var(--ac2);border-radius:12px;padding:10px 14px;font-size:13px}
+#log ul{margin:8px 0 0;padding:0 18px 0 0;font-size:13px;color:var(--mut)}
+#log li{margin:4px 0}
+#log li.ok{color:var(--ac2)} #log li.er{color:var(--bad)}
 </style>
 </head>
 <body>
 <header>
  <div class="row"><span style="font-size:26px">📦</span>
-  <div><b>دليل الأصناف الذكي</b><div class="mut small">قراءة Excel • تحليل عميق • بحث • باركود • تعرف بالصورة • أسماء بديلة</div></div>
+  <div><b>دليل الأصناف الذكي</b> <span class="badge">الإصدار 3.0</span><div class="mut small">قراءة Excel • تحليل عميق • بحث • باركود • تعرف بالصورة • أسماء بديلة</div></div>
  </div>
  <div class="row">
   <button id="btnSaveSession" class="btn ghost" hidden>💾 حفظ الجلسة</button>
@@ -91,6 +94,8 @@ th{background:var(--card2)}
    <button class="btn ghost" id="btnResume" hidden>⏳ متابعة آخر جلسة</button>
   </div>
  </section>
+
+ <section id="log" class="card" hidden><b>📜 سجل العملية:</b><ul id="logList"></ul></section>
 
  <section id="mapSec" class="card" hidden>
   <h3>🔎 الفهم الآلي للملف <span class="mut small" id="fileMeta"></span></h3>
@@ -167,20 +172,40 @@ const fsize=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/10
 const nextFrame=()=>new Promise(r=>setTimeout(r,30));
 function toast(m,err){const t=$('toast');t.textContent=m;t.classList.add('show');if(err)t.classList.add('err');setTimeout(()=>{t.classList.remove('show');t.classList.remove('err')},2600)}
 function setLoad(on,txt,step){$('loader').hidden=!on;if(txt)$('loadTxt').textContent=txt;if(step!==undefined)$('loadStep').textContent=step;}
+function log(m,cls){$('log').hidden=false;const li=document.createElement('li');if(cls)li.className=cls;li.textContent='• '+m;$('logList').appendChild(li);}
+window.addEventListener('error',e=>log('خطأ غير متوقع: '+e.message,'er'));
 function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)();const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>{o.stop();a.close()},120)}catch(e){}}
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);})}
+async function ensureLib(name,urls){
+ if(window[name])return true;
+ for(const u of urls){
+  log('تنزيل مكتبة ناقصة من: '+u);
+  try{await loadScript(u);if(window[name])return true;}catch(e){log('فشل التنزيل من: '+u,'er')}
+ }
+ return false;
+}
 
-/* ================= قراءة الملف مع مؤشر التحميل ================= */
+/* ================= قراءة الملف مع مؤشر التحميل والسجل ================= */
+function onFile(e){
+ const f=e.target.files&&e.target.files[0];
+ e.target.value='';
+ if(!f){toast('⚠ لم يتم اختيار أي ملف',1);log('لم يصل أي ملف من المنتقي','er');return;}
+ handleFile(f);
+}
 async function handleFile(f){
- if(!f)return;
- if(!/\.(xlsx|xls|csv)$/i.test(f.name)){toast('⚠ صيغة غير مدعومة — اختر ملف Excel',1);return;}
- setLoad(true,'جارٍ قراءة الملف…','الخطوة 1/3: تحميل '+f.name+' ('+fsize(f.size)+')');
- await nextFrame();
+ log('تم اختيار الملف: '+f.name+' — الحجم: '+fsize(f.size));
+ if(!/\.(xlsx|xls|csv)$/i.test(f.name)){toast('⚠ صيغة غير مدعومة — اختر ملف Excel',1);log('امتداد مرفوض: '+f.name,'er');return;}
+ setLoad(true,'جارٍ قراءة الملف…','الخطوة 1/3: تحميل '+f.name);
+ if(!await ensureLib('XLSX',['https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'])){
+  setLoad(false);toast('✖ تعذر تحميل مكتبة قراءة Excel — تحقق من الإنترنت',1);log('فشل تحميل مكتبة XLSX من كل المصادر','er');return;}
  try{
   const buf=await f.arrayBuffer();
+  log('تم تحميل البايتات بنجاح ('+fsize(buf.byteLength)+')','ok');
   setLoad(true,'جارٍ فك ضغط الملف…','الخطوة 2/3: قراءة الأوراق والجداول');
   await nextFrame();
   WB=XLSX.read(buf,{type:'array'});
-  if(!WB.SheetNames.length){setLoad(false);toast('✖ الملف لا يحتوي أوراقًا',1);return;}
+  log('الأوراق المكتشفة: '+WB.SheetNames.join('، '),'ok');
+  if(!WB.SheetNames.length){setLoad(false);toast('✖ الملف لا يحتوي أوراقًا',1);log('لا أوراق داخل الملف','er');return;}
   setLoad(true,'جارٍ فهم الأعمدة…','الخطوة 3/3: بناء الفهارس والبحث الذكي');
   await nextFrame();
   $('sheetPick').innerHTML=WB.SheetNames.map(s=>`<button class="chip" data-s="${s}">📄 ${s}</button>`).join('');
@@ -188,10 +213,12 @@ async function handleFile(f){
   useSheet(WB.SheetNames[0]);
   $('dropZone').hidden=true;showWork();showFileStat(f);
   setLoad(false);window.scrollTo(0,0);
+  log('✔ اكتمل التحميل — الأصناف المقروءة: '+ITEMS.length,'ok');
   toast('✔ اكتمل التحميل: '+fmt(ITEMS.length)+' صنف جاهز');
-  if(!ITEMS.length)toast('⚠ لم تُقرأ أصناف — صحّح عمود "اسم المادة" في الفهم الآلي',1);
+  if(!ITEMS.length){toast('⚠ لم تُقرأ أصناف — صحّح عمود "اسم المادة" في الفهم الآلي',1);log('تحذير: لم يُعثر على أصناف — راجع ربط الأعمدة','er');}
  }catch(e){
   setLoad(false);console.error(e);
+  log('خطأ أثناء المعالجة: '+e.message,'er');
   toast('✖ تعذرت قراءة الملف — تأكد أنه ملف Excel سليم غير تالف',1);
  }
 }
@@ -202,7 +229,7 @@ function showFileStat(f){
 function useSheet(name){
  sheetName=name;
  const rows=XLSX.utils.sheet_to_json(WB.Sheets[name],{header:1,defval:''});
- if(!rows.length){toast('✖ الورقة "'+name+'" فارغة',1);return;}
+ if(!rows.length){toast('✖ الورقة "'+name+'" فارغة',1);log('الورقة '+name+' فارغة','er');return;}
  let hi=-1;
  for(let i=0;i<Math.min(rows.length,25);i++){
   const line=rows[i].map(c=>String(c)).join('|');
@@ -211,6 +238,7 @@ function useSheet(name){
  if(hi<0)hi=0;
  HEADERS=rows[hi].map((c,i)=>String(c).trim()||('عمود '+(i+1)));
  RAWROWS=rows.slice(hi+1);
+ log('ورقة "'+name+'": صف العناوين رقم '+(hi+1)+' — '+RAWROWS.length+' صف بيانات');
  autoMap();buildItems();renderAll();
  $('fileMeta').textContent=` — ورقة "${name}" — ${RAWROWS.length} صف — ${HEADERS.length} عمود`;
 }
@@ -227,6 +255,7 @@ function autoMap(){
  MAP.qty=find(h=>h.includes('كميه')||h.includes('qty'));
  MAP.unit=find(h=>h.includes('وحده'));
  MAP.group=find(h=>h.includes('بطاقه')||h.includes('مجموعه')||h.includes('فئه')||h.includes('تصنيف'));
+ log('ربط الأعمدة: اسم='+(MAP.name+1)+'، رمز='+(MAP.code+1)+'، باركود='+(MAP.barcode+1)+'، سعر='+(MAP.price+1)+'، كمية='+(MAP.qty+1));
 }
 function buildItems(){
  ITEMS=[];
@@ -334,6 +363,7 @@ $('manualBar').addEventListener('keydown',e=>{if(e.key==='Enter'){const it=findB
 $('btnScanStart').onclick=async()=>{
  $('qr-reader').hidden=false;$('btnScanStart').hidden=true;$('btnScanStop').hidden=false;
  try{
+  if(!await ensureLib('Html5Qrcode',['https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'])){throw new Error('no-lib');}
   scanner=new Html5Qrcode('qr-reader');
   await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150}},txt=>{
    const now=Date.now();if(now-lastScan<1500)return;lastScan=now;
@@ -433,7 +463,7 @@ $('btnExport').onclick=()=>{
 $('btnSaveSession').onclick=()=>{try{localStorage.setItem('session',JSON.stringify({ITEMS,HEADERS,MAP,RAWROWS}));toast('حُفظت الجلسة ✔')}catch(e){toast('الملف كبير على الحفظ المحلي',1)}};
 if(localStorage.getItem('session'))$('btnResume').hidden=false;
 $('btnResume').onclick=()=>{const s=JSON.parse(localStorage.getItem('session'));ITEMS=s.ITEMS;HEADERS=s.HEADERS;MAP=s.MAP;RAWROWS=s.RAWROWS;
- $('dropZone').hidden=true;showWork();renderAll();toast('تمت المتابعة ✔');};
+ $('dropZone').hidden=true;showWork();renderAll();log('تمت استعادة الجلسة السابقة','ok');toast('تمت المتابعة ✔');};
 
 /* ================= بيانات تجريبية ================= */
 $('btnDemo').onclick=()=>{
@@ -459,10 +489,11 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
  document.querySelectorAll('.tabp').forEach(x=>x.classList.remove('on'));
  t.classList.add('on');$(t.dataset.t).classList.add('on');
 });
-$('fileInput').onchange=e=>handleFile(e.target.files[0]);
-$('fileInput2').onchange=e=>handleFile(e.target.files[0]);
+$('fileInput').onchange=onFile;
+$('fileInput2').onchange=onFile;
 ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
 document.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
+if(!window.XLSX)log('تنبيه: مكتبة Excel لم تُحمَّل من الخادم الرئيسي — سيحمّلها النظام تلقائيًا عند أول ملف','er');
 </script>
 </body>
 </html>

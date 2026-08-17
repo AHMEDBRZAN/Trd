@@ -1,3 +1,10 @@
+(function(){
+ var st=document.createElement('style');
+ st.textContent='button,.chip,.item,label{touch-action:manipulation}'
+ +'.mhead{position:sticky;top:0;background:var(--card);z-index:6}'
+ +'#mClose{min-width:44px;min-height:44px;font-size:18px}';
+ document.head.appendChild(st);
+})();
 var WB=null;
 var ITEMS=[];
 var HEADERS=[];
@@ -5,6 +12,7 @@ var MAP={};
 var RAWROWS=[];
 var sheetName='';
 var SIM=[];
+var SIMCACHE={};
 var MSTACK=[];
 var CURRENT_REOPEN=null;
 var CUR_SCREEN=null;
@@ -106,7 +114,6 @@ function ensureLib(name,urls){
  });
  return p;
 }
-/* عرض متدرج سريع: 50 عنصرًا ثم زر المزيد */
 function renderChunked(container,arr,mapFn){
  container.innerHTML='';
  var n=0;
@@ -128,6 +135,13 @@ function renderChunked(container,arr,mapFn){
   }
  }
  addMore();
+}
+function simCached(arr,key){
+ var k=key+'|'+arr.length;
+ if(SIMCACHE[k]){return SIMCACHE[k]}
+ var p=computeSimOn(arr);
+ SIMCACHE[k]=p;
+ return p;
 }
 function bindUpload(){
  var inp=$('fileInput2');
@@ -310,6 +324,7 @@ function autoMap(){
  log('ربط الأعمدة: اسم='+(MAP.name+1)+' رمز='+(MAP.code+1)+' باركود='+(MAP.barcode+1)+' سعر='+(MAP.price+1)+' كمية='+(MAP.qty+1));
 }
 function buildItems(){
+ SIMCACHE={};
  ITEMS=[];
  RAWROWS.forEach(function(r){
   function g(i){
@@ -395,7 +410,7 @@ function computeSimOn(arr){
  pairs.sort(function(x,y){return y.s-x.s});
  return pairs;
 }
-function computeSim(){SIM=computeSimOn(ITEMS)}
+function computeSim(){SIM=simCached(ITEMS,'all')}
 function pairCardFactory(arr){
  return function(p){
   var a=arr[p.a];
@@ -445,7 +460,7 @@ function showGroupModal(g){
  var zero=sub.filter(function(i){return i.qty===0});
  var noBar=sub.filter(function(i){return digits(i.barcode).length<4});
  var noPrice=sub.filter(function(i){return !i.price});
- var pairs=computeSimOn(sub);
+ var pairs=simCached(sub,'g:'+g);
  $('mTitle').textContent='🗂 بطاقة: '+g+' ('+sub.length+')';
  var h='<div class="chips">';
  h=h+'<span class="chip" data-g="all">كل المواد: '+sub.length+'</span>';

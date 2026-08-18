@@ -313,9 +313,22 @@ document.querySelectorAll('.tab').forEach(function(t){
 document.addEventListener('drop',function(e){var f=e.dataTransfer.files[0];if(f)handleFile(f)});
 (function(){
  var missing=[];
- ['handleFile','autoMap','analyze','showMapModal','showGroupModal'].forEach(function(f){if(typeof window[f]!=='function')missing.push('app1.js')});
- ['openModal','search','listModal','findByBarcode'].forEach(function(f){if(typeof window[f]!=='function')missing.push('app2.js')});
+ ['handleFile','autoMap','analyze','showMapModal','showGroupModal'].forEach(function(f){
+  if(typeof window[f]!=='function'){missing.push('app1.js')}
+ });
+ ['openModal','search','listModal','findByBarcode'].forEach(function(f){
+  if(typeof window[f]!=='function'){missing.push('app2.js')}
+ });
  var b=$('sysState');
- if(missing.length){b.textContent='⚠ ملف تالف: '+missing.join('، ');b.style.color='var(--bad)';b.style.borderColor='var(--bad)'}
- else{window.APP_READY=true;b.textContent='✔ جاهز 7.3';b.style.color='var(--ac2)';b.style.borderColor='var(--ac2);log('النظام اكتمل تشغيله','ok')}
+ if(missing.length){
+  b.textContent='⚠ ملف تالف: '+missing.join('، ');
+  b.style.color='var(--bad)';
+  b.style.borderColor='var(--bad)';
+ }else{
+  window.APP_READY=true;
+  b.textContent='✔ جاهز 7.3';
+  b.style.color='var(--ac2)';
+  b.style.borderColor='var(--ac2)';
+  log('النظام اكتمل تشغيله','ok');
+ }
 })();

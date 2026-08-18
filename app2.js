@@ -112,11 +112,11 @@ function openModal(code){
  lockScroll(true);
  $('mTitle').textContent=it.name;
  var chips='<span class="chip">الرمز: '+it.code+'</span>';
- chips=chips+'<span class="chip">الباركود: '+(it.barcode||'—')+'</span>';
- chips=chips+'<span class="chip">السعر: '+fmt(it.price)+'</span>';
- chips=chips+'<span class="chip">الكمية: '+it.qty+'</span>';
- chips=chips+'<span class="chip">الوحدة: '+(it.unit||'—')+'</span>';
- chips=chips+'<span class="chip">المجموعة: '+(it.group||'—')+'</span>';
+ chips+='<span class="chip">الباركود: '+(it.barcode||'—')+'</span>';
+ chips+='<span class="chip">السعر: '+fmt(it.price)+'</span>';
+ chips+='<span class="chip">الكمية: '+it.qty+'</span>';
+ chips+='<span class="chip">الوحدة: '+(it.unit||'—')+'</span>';
+ chips+='<span class="chip">المجموعة: '+(it.group||'—')+'</span>';
  var als='<span class="mut small">لا يوجد</span>';
  if(it.aliases.length){
   als=it.aliases.map(function(a,i){
@@ -143,7 +143,6 @@ function openModal(code){
   };
  });
 }
-/* ✖ يرجع خطوة واحدة فقط */
 function closeModalOne(){
  var prev=MSTACK.pop();
  if(prev){
@@ -185,31 +184,26 @@ function renderListModal(){
  if(CURLIST_SORT==='pricea'){arr.sort(function(a,b){return a.price-b.price})}
  if(CURLIST_SORT==='name'){arr.sort(function(a,b){return normAr(a.name).localeCompare(normAr(b.name),'ar')})}
  if(CURLIST_SORT==='code'){arr.sort(function(a,b){return (Number(a.code)||0)-(Number(b.code)||0)})}
- var rows=arr.map(function(it){
-  return {
-   'الرمز':it.code,
-   'اسم المادة':it.name,
-   'الباركود':it.barcode,
-   'سعر المبيع':it.price,
-   'الكمية':it.qty,
-   'الوحدة':it.unit,
-   'المجموعة':it.group
-  };
+ var rows=window.buildListRows?window.buildListRows(arr,CURLIST_KEY):arr.map(function(it){
+  return {'الرمز':it.code,'اسم المادة':it.name,'الباركود':it.barcode,'سعر المبيع':it.price,'الكمية':it.qty,'الوحدة':it.unit,'المجموعة':it.group};
  });
  window.CURLIST={title:CURLIST_TITLE,rows:rows};
+ window.refreshCurrentList=function(){renderListModal()};
  $('mTitle').textContent=CURLIST_TITLE+' ('+arr.length+')';
  var h='<div class="row" style="margin-bottom:8px">';
- h=h+'<button class="btn ghost" id="btnExpList">⬇️ تصدير Excel</button>';
- h=h+'<select id="sortSel" class="inp" style="width:auto;flex:1">';
+ h+='<button class="btn ghost" id="btnExpList">⬇️ تصدير</button>';
+ h+='<button class="btn ghost" id="btnColList">⚙</button>';
+ h+='<select id="sortSel" class="inp" style="width:auto;flex:1">';
  sortOptions().forEach(function(o){
-  h=h+'<option value="'+o[0]+'"'+(CURLIST_SORT===o[0]?' selected':'')+'>'+o[1]+'</option>';
+  h+='<option value="'+o[0]+'"'+(CURLIST_SORT===o[0]?' selected':'')+'>'+o[1]+'</option>';
  });
- h=h+'</select></div>';
- h=h+'<div class="list" id="listBox"></div>';
+ h+='</select></div>';
+ h+='<div class="list" id="listBox"></div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
  renderChunked($('listBox'),arr,itemCard);
  $('btnExpList').onclick=function(){if(window.exportItemsList){window.exportItemsList()}};
+ $('btnColList').onclick=function(){if(window.openListColEditor){window.openListColEditor(CURLIST_KEY)}};
  $('sortSel').onchange=function(e){
   CURLIST_SORT=e.target.value;
   renderListModal();

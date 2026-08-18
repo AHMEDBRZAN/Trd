@@ -1,7 +1,13 @@
 (function(){
  var st=document.createElement('style');
  st.textContent='table{background:#fff;color:#000}th,td{border:1px solid #999;color:#000}th{background:#e8e8e8;color:#000}'
- +'.item{flex-wrap:wrap}.item b{font-size:13px}.item small{font-size:11px}';
+ +'.item{flex-wrap:wrap}.item b{font-size:13px}.item small{font-size:11px}'
+ +'.sess-card{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:8px}'
+ +'.sess-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}'
+ +'.sess-name{font-weight:700;font-size:15px;color:var(--tx);word-break:break-word;flex:1}'
+ +'.sess-meta{font-size:11px;color:var(--mut);margin-top:3px}'
+ +'.sess-actions{display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px}'
+ +'.sess-actions .btn{padding:8px;font-size:13px}';
  document.head.appendChild(st);
 })();
 (function(){
@@ -13,7 +19,7 @@
   if(p&&p.parentNode){p.parentNode.removeChild(p)}
  });
  var badges=document.querySelectorAll('header .badge');
- if(badges.length){badges[0].textContent='الإصدار 7.5'}
+ if(badges.length){badges[0].textContent='الإصدار 7.6'}
 })();
 (function(){
  var mb=$('manualBar');
@@ -262,35 +268,67 @@ function restoreSession(id){
  $('modal').hidden=true;MSTACK=[];CURRENT_REOPEN=null;CUR_SCREEN=null;lockScroll(false);
  toast('✔ فُتحت الجلسة: '+s.name);
 }
+/* ====== قائمة الجلسات — تصميم جديد مرتب ====== */
 function showSessionsModal(){
  if(CUR_SCREEN!=='sess'){MSTACK.push(CURRENT_REOPEN)}
  CURRENT_REOPEN=function(){showSessionsModal()};CUR_SCREEN='sess';lockScroll(true);
  var ids=Object.keys(SESSIONS).sort(function(a,b){return (SESSIONS[b].t||0)-(SESSIONS[a].t||0)});
- $('mTitle').textContent='الجلسات المحفوظة ('+ids.length+')';
- var h='<div class="list">';
- if(!ids.length){h+='<p class="mut">لا جلسات محفوظة بعد.</p>'}
+ $('mTitle').textContent='📚 الجلسات المحفوظة ('+ids.length+')';
+ var h='<div class="list" style="gap:10px">';
+ if(!ids.length){
+  h+='<p class="mut" style="text-align:center;padding:20px">لا توجد جلسات محفوظة بعد.<br>ارفع ملفًا واضغط "💾 حفظ الجلسة".</p>';
+ }
  ids.forEach(function(id){
-  var s=SESSIONS[id];var d=new Date(s.t||0);
-  h+='<div class="item"><div style="flex:1;min-width:150px"><b>'+s.name+'</b><div class="mut small">'+(s.ITEMS?s.ITEMS.length:0)+' صنف • '+d.toLocaleString();
-  if(id===CURSID){h+=' • <span class="sim">مفتوحة الآن</span>'}
-  h+='</div></div><button class="btn" data-sopen="'+id+'">فتح</button><button class="btn ghost" data-sren="'+id+'">✏️</button><button class="btn ghost" data-sdel="'+id+'">🗑</button></div>';
+  var s=SESSIONS[id];
+  var d=new Date(s.t||0);
+  var count=s.ITEMS?s.ITEMS.length:0;
+  var isOpen=(id===CURSID);
+  
+  h+='<div class="sess-card">';
+  h+='<div class="sess-head">';
+  h+='<div style="flex:1;min-width:0">';
+  h+='<div class="sess-name">'+s.name+'</div>';
+  h+='<div class="sess-meta">📦 '+count+' صنف • 📅 '+d.toLocaleString('ar-EG');
+  if(isOpen){h+=' • <span class="sim">مفتوحة الآن</span>'}
+  h+='</div>';
+  h+='</div>';
+  h+='</div>';
+  
+  h+='<div class="sess-actions">';
+  h+='<button class="btn" data-sopen="'+id+'">▶ فتح</button>';
+  h+='<button class="btn ghost" data-sren="'+id+'">✏️ تعديل</button>';
+  h+='<button class="btn ghost" data-sdel="'+id+'" style="color:var(--bad)">🗑 حذف</button>';
+  h+='</div>';
+  h+='</div>';
  });
  h+='</div>';
- $('mBody').innerHTML=h;$('modal').hidden=false;
- $('mBody').querySelectorAll('[data-sopen]').forEach(function(b){b.onclick=function(){restoreSession(b.getAttribute('data-sopen'))}});
+ $('mBody').innerHTML=h;
+ $('modal').hidden=false;
+ $('mBody').querySelectorAll('[data-sopen]').forEach(function(b){
+  b.onclick=function(){restoreSession(b.getAttribute('data-sopen'))}
+ });
  $('mBody').querySelectorAll('[data-sren]').forEach(function(b){
   b.onclick=function(){
    var id=b.getAttribute('data-sren');
-   var nn=prompt('التسمية الجديدة:',SESSIONS[id].name);
-   if(nn&&nn.trim()){SESSIONS[id].name=nn.trim();saveLS('sessions',SESSIONS);showSessionsModal();toast('تمت إعادة التسمية ✔')}
+   var nn=prompt('التسمية الجديدة للجلسة:',SESSIONS[id].name);
+   if(nn&&nn.trim()){
+    SESSIONS[id].name=nn.trim();
+    saveLS('sessions',SESSIONS);
+    showSessionsModal();
+    toast('✔ تمت إعادة التسمية');
+   }
   };
  });
  $('mBody').querySelectorAll('[data-sdel]').forEach(function(b){
   b.onclick=function(){
    var id=b.getAttribute('data-sdel');
-   if(confirm('حذف "'+SESSIONS[id].name+'"؟')){
-    delete SESSIONS[id];if(CURSID===id)CURSID=null;
-    saveLS('sessions',SESSIONS);updateSessionBtn();showSessionsModal();toast('حُذفت 🗑');
+   if(confirm('حذف الجلسة "'+SESSIONS[id].name+'" نهائيًا؟')){
+    delete SESSIONS[id];
+    if(CURSID===id){CURSID=null}
+    saveLS('sessions',SESSIONS);
+    updateSessionBtn();
+    showSessionsModal();
+    toast('🗑 حُذفت الجلسة');
    }
   };
  });
@@ -337,7 +375,7 @@ document.addEventListener('drop',function(e){var f=e.dataTransfer.files[0];if(f)
   b.style.borderColor='var(--bad)';
  }else{
   window.APP_READY=true;
-  b.textContent='✔ جاهز 7.5';
+  b.textContent='✔ جاهز 7.6';
   b.style.color='var(--ac2)';
   b.style.borderColor='var(--ac2)';
   log('النظام اكتمل تشغيله','ok');

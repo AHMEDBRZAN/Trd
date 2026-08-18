@@ -157,7 +157,7 @@ function onFile(e){
  var f=e.target.files&&e.target.files[0];
  e.target.value='';
  if(!f){
-  toast(' المنتقي أُغلق بدون ملف',1);
+  toast('المنتقي أُغلق بدون ملف',1);
   return;
  }
  log('✔ وصل الملف: '+f.name+' ('+fsize(f.size)+')','ok');
@@ -451,6 +451,28 @@ function openSimList(arr,pairs,title){
  var be=$('btnExpList');
  if(be){be.onclick=function(){if(window.exportItemsList){window.exportItemsList()}};}
 }
+/* ====== صفحة بطاقات المجموعة (تفتح بزر) ====== */
+function showGroupsList(){
+ if(!NO_PUSH&&CUR_SCREEN!=='groups'){MSTACK.push(CURRENT_REOPEN)}
+ CURRENT_REOPEN=function(){showGroupsList()};
+ CUR_SCREEN='groups';
+ lockScroll(true);
+ var g={};
+ ITEMS.forEach(function(i){g[i.group]=(g[i.group]||0)+1});
+ var keys=Object.keys(g);
+ $('mTitle').textContent='🗂 بطاقات المجموعة ('+keys.length+')';
+ var h='<div class="list">';
+ if(!keys.length){h+='<p class="mut">لا توجد مجموعات.</p>'}
+ keys.forEach(function(k){
+  h+='<div class="item" data-gr="'+k+'"><div style="flex:1;min-width:120px"><b>'+(k||'بدون مجموعة')+'</b><div class="mut small">'+g[k]+' صنف</div></div><span class="badge">فتح ➜</span></div>';
+ });
+ h+='</div>';
+ $('mBody').innerHTML=h;
+ $('modal').hidden=false;
+ $('mBody').querySelectorAll('[data-gr]').forEach(function(c){
+  c.onclick=function(){showGroupModal(c.getAttribute('data-gr'))};
+ });
+}
 function showGroupModal(g){
  if(!NO_PUSH&&CUR_SCREEN!=='group'){MSTACK.push(CURRENT_REOPEN)}
  CURRENT_REOPEN=function(){showGroupModal(g)};
@@ -523,13 +545,13 @@ function analyze(){
  al+='<span class="chip bad" data-l="dups">باركود مكرر: '+dups.length+'</span>';
  al+='<span class="chip warn" data-l="sim">👥 أصناف متشابهة: '+SIM.length+'</span>';
  $('alerts').innerHTML=al;
+ /* زر بطاقات المجموعة بدل عرضها مباشرة */
  var g={};
  ITEMS.forEach(function(i){g[i.group]=(g[i.group]||0)+1});
- var gh='';
- Object.keys(g).forEach(function(k){
-  gh+='<span class="chip" data-gr="'+k+'">🗂 '+(k||'بدون مجموعة')+': '+g[k]+'</span>';
- });
- $('groups').innerHTML=gh;
+ var gkeys=Object.keys(g);
+ $('groups').innerHTML='<button class="btn ghost" id="btnGroups">🗂 بطاقات المجموعة ('+gkeys.length+')</button>';
+ var bg=$('btnGroups');
+ if(bg){bg.onclick=showGroupsList}
  $('alerts').querySelectorAll('.chip').forEach(function(c){
   c.onclick=function(){
    var key=c.getAttribute('data-l');
@@ -537,9 +559,6 @@ function analyze(){
    var L={neg:neg,zero:zero,nobar:noBar,noprice:noPrice,dups:dups}[key];
    listModal('قائمة الأصناف',L,key);
   };
- });
- $('groups').querySelectorAll('[data-gr]').forEach(function(c){
-  c.onclick=function(){showGroupModal(c.getAttribute('data-gr'))};
  });
  var rows='<table><tr><th>العمود</th><th>الدور</th><th>معبأ</th><th>أرقام</th><th>عينة</th></tr>';
  HEADERS.forEach(function(h,i){

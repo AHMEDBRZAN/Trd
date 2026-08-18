@@ -134,6 +134,7 @@ function renderChunked(container,arr,mapFn){
    btn.parentNode.removeChild(btn);
   }
  }
+ btn.onclick=function(){addMore()};
  addMore();
 }
 function simCached(arr,key){
@@ -156,7 +157,7 @@ function onFile(e){
  var f=e.target.files&&e.target.files[0];
  e.target.value='';
  if(!f){
-  toast('⚠ المنتقي أُغلق بدون ملف',1);
+  toast(' المنتقي أُغلق بدون ملف',1);
   return;
  }
  log('✔ وصل الملف: '+f.name+' ('+fsize(f.size)+')','ok');
@@ -463,13 +464,13 @@ function showGroupModal(g){
  var pairs=simCached(sub,'g:'+g);
  $('mTitle').textContent='🗂 بطاقة: '+g+' ('+sub.length+')';
  var h='<div class="chips">';
- h=h+'<span class="chip" data-g="all">كل المواد: '+sub.length+'</span>';
- h=h+'<span class="chip bad" data-g="neg">سالبة: '+neg.length+'</span>';
- h=h+'<span class="chip warn" data-g="zero">صفر: '+zero.length+'</span>';
- h=h+'<span class="chip warn" data-g="nobar">بدون باركود: '+noBar.length+'</span>';
- h=h+'<span class="chip warn" data-g="noprice">بدون سعر: '+noPrice.length+'</span>';
- h=h+'<span class="chip warn" data-g="sim">متشابهة: '+pairs.length+'</span>';
- h=h+'</div><div class="list" id="gList"></div>';
+ h+='<span class="chip" data-g="all">كل المواد: '+sub.length+'</span>';
+ h+='<span class="chip bad" data-g="neg">سالبة: '+neg.length+'</span>';
+ h+='<span class="chip warn" data-g="zero">صفر: '+zero.length+'</span>';
+ h+='<span class="chip warn" data-g="nobar">بدون باركود: '+noBar.length+'</span>';
+ h+='<span class="chip warn" data-g="noprice">بدون سعر: '+noPrice.length+'</span>';
+ h+='<span class="chip warn" data-g="sim">متشابهة: '+pairs.length+'</span>';
+ h+='</div><div class="list" id="gList"></div>';
  $('mBody').innerHTML=h;
  $('modal').hidden=false;
  renderChunked($('gList'),sub,itemCard);
@@ -509,24 +510,24 @@ function analyze(){
  });
  computeSim();
  var st='';
- st=st+'<div class="stat"><b>'+fmt(tot)+'</b><span>إجمالي الأصناف</span></div>';
- st=st+'<div class="stat"><b>'+fmt(withBar.length)+'</b><span>بباركود</span></div>';
- st=st+'<div class="stat"><b>'+fmt(units)+'</b><span>القطع الموجبة</span></div>';
- st=st+'<div class="stat"><b>'+fmt(value)+'</b><span>قيمة المخزون</span></div>';
+ st+='<div class="stat"><b>'+fmt(tot)+'</b><span>إجمالي الأصناف</span></div>';
+ st+='<div class="stat"><b>'+fmt(withBar.length)+'</b><span>بباركود</span></div>';
+ st+='<div class="stat"><b>'+fmt(units)+'</b><span>القطع الموجبة</span></div>';
+ st+='<div class="stat"><b>'+fmt(value)+'</b><span>قيمة المخزون</span></div>';
  $('stats').innerHTML=st;
  var al='';
- al=al+'<span class="chip bad" data-l="neg">⚠ كميات سالبة: '+neg.length+'</span>';
- al=al+'<span class="chip warn" data-l="zero">كميات صفر: '+zero.length+'</span>';
- al=al+'<span class="chip warn" data-l="nobar">بدون باركود: '+noBar.length+'</span>';
- al=al+'<span class="chip warn" data-l="noprice">بدون سعر: '+noPrice.length+'</span>';
- al=al+'<span class="chip bad" data-l="dups">باركود مكرر: '+dups.length+'</span>';
- al=al+'<span class="chip warn" data-l="sim">👥 أصناف متشابهة: '+SIM.length+'</span>';
+ al+='<span class="chip bad" data-l="neg">⚠ كميات سالبة: '+neg.length+'</span>';
+ al+='<span class="chip warn" data-l="zero">كميات صفر: '+zero.length+'</span>';
+ al+='<span class="chip warn" data-l="nobar">بدون باركود: '+noBar.length+'</span>';
+ al+='<span class="chip warn" data-l="noprice">بدون سعر: '+noPrice.length+'</span>';
+ al+='<span class="chip bad" data-l="dups">باركود مكرر: '+dups.length+'</span>';
+ al+='<span class="chip warn" data-l="sim">👥 أصناف متشابهة: '+SIM.length+'</span>';
  $('alerts').innerHTML=al;
  var g={};
  ITEMS.forEach(function(i){g[i.group]=(g[i.group]||0)+1});
  var gh='';
  Object.keys(g).forEach(function(k){
-  gh=gh+'<span class="chip" data-gr="'+k+'">🗂 '+(k||'بدون مجموعة')+': '+g[k]+'</span>';
+  gh+='<span class="chip" data-gr="'+k+'">🗂 '+(k||'بدون مجموعة')+': '+g[k]+'</span>';
  });
  $('groups').innerHTML=gh;
  $('alerts').querySelectorAll('.chip').forEach(function(c){
@@ -557,7 +558,7 @@ function analyze(){
   Object.keys(MAP).forEach(function(k){
    if(MAP[k]===i){role=k}
   });
-  rows=rows+'<tr><td>'+h+'</td><td>'+(role?FIELDS[role]:'—')+'</td><td>'+f+'/'+RAWROWS.length+'</td><td>'+n+'</td><td>'+smp+'</td></tr>';
+  rows+='<tr><td>'+h+'</td><td>'+(role?FIELDS[role]:'—')+'</td><td>'+f+'/'+RAWROWS.length+'</td><td>'+n+'</td><td>'+smp+'</td></tr>';
  });
  $('colInsight').innerHTML=rows+'</table>';
 }
